@@ -42,7 +42,7 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
-const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[]};
+const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null};
 
 // Cloud save — debounced, strips transient fields. Returns { ok, error? } for UI feedback.
 const TRANSIENT_KEYS=["screen","currentMatch","viewPlayerId"];
@@ -81,6 +81,15 @@ async function cloudLoad(defaults){
 // BroadcastChannel kept for same-tab sync (goal notifications etc)
 let _bc=null;
 function getBroadcastChannel(){if(!_bc){try{_bc=new BroadcastChannel(SYNC_CHANNEL);}catch(e){}}return _bc;}
+
+async function callGemini(prompt,gk){
+  if(!gk)return null;
+  try{
+    const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${gk}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+    const data=await res.json();
+    return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim()||null;
+  }catch(e){return null;}
+}
 
 const LOGO="data:image/webp;base64,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";
 
@@ -220,7 +229,7 @@ export default function App(){
   ];
   const initState={...DEFAULT_STATE,commentators:[...defaultNarrators,...defaultAnalysts],journalists:[...defaultJournalists]};
   const[role,sRole]=useState(null);
-  const[light,sLight]=useState(()=>{try{return localStorage.getItem("futsabao_theme")==="light";}catch(e){return false;}});
+  const[light,sLight]=useState(()=>{try{return localStorage.getItem("futsabao_theme")!=="dark";}catch(e){return true;}});
   const[loggedPlayer,sLoggedPlayer]=useState(null);
   const[loading,sLoading]=useState(true);
   const[saveError,sSetSaveError]=useState(null);
@@ -280,10 +289,16 @@ export default function App(){
   // Save theme pref
   useEffect(()=>{try{localStorage.setItem("futsabao_theme",light?"light":"dark");}catch(e){}},[light]);
 
+  // Sync meta theme-color with current theme (browser bar / PWA)
+  useEffect(()=>{
+    const meta=document.querySelector('meta[name="theme-color"]');
+    if(meta)meta.setAttribute("content",light?"#F5F1EA":"#070B18");
+  },[light]);
+
   // Auto-clear save error toast after 5s
   useEffect(()=>{if(!saveError)return;const t=setTimeout(()=>sSetSaveError(null),5000);return()=>clearTimeout(t);},[saveError]);
 
-  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador"};
+  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação"};
   const go=useCallback((s,x={})=>{
     sS(p=>({...p,screen:s,...x}));
     try{const title=SCREEN_NAMES[s]||s;window.history.pushState({screen:s},"",`#${s}`);document.title=`Futsabão — ${title}`;}catch(e){}
@@ -315,7 +330,7 @@ export default function App(){
 
   if(!role)return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>{!supabase&&<div role="status" style={{padding:"10px 14px",marginTop:12,marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}<LoginScreen onRole={sRole} light={light} toggleTheme={toggleTheme} S={S} sLoggedPlayer={sLoggedPlayer}/></div></div>;
   const athleteScreens={home:()=><AthleteDashboard {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
-  const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
+  const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation};
   const SC=role==="admin"?adminScreens:athleteScreens;
   const C=SC[S.screen]||(role==="admin"?Home:()=><AthleteDashboard {...props}/>);
   return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>
@@ -405,10 +420,79 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer}){
 
 /* ══════════ ATHLETE DASHBOARD (TOURNAMENT HOME) ══════════ */
 function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
+  const[justRegistered,sJustRegistered]=useState(()=>{try{const v=sessionStorage.getItem("futsabao_just_registered");if(v){sessionStorage.removeItem("futsabao_just_registered");return true;}return false;}catch(e){return false;}});
   const[goalNotif,sGoalNotif]=useState(null);
   const[hasSubmittedInterview,sHasSubmittedInterview]=useState(false);
   const[interviewAnswer,sInterviewAnswer]=useState("");
+  const[generatingNews,sGeneratingNews]=useState(false);
   const interviewPick=useRef(null);
+  const dailyHeadlineGeneratingRef=useRef(false);
+  const cartolaGeneratingRef=useRef(false);
+  const torcedorGeneratingRef=useRef(false);
+  const[loadingFlashId,sLoadingFlashId]=useState(null);
+  const[loadingMvpId,sLoadingMvpId]=useState(null);
+  const[loadingHypeId,sLoadingHypeId]=useState(null);
+  const[generatingDailyHeadline,sGeneratingDailyHeadline]=useState(false);
+  const[generatingCartola,sGeneratingCartola]=useState(false);
+  const[generatingTorcedor,sGeneratingTorcedor]=useState(false);
+  const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
+  useEffect(()=>{
+    if(!S.geminiKey||dailyHeadlineGeneratingRef.current)return;
+    if(S.dailyHeadline&&S.dailyHeadline.date===today)return;
+    dailyHeadlineGeneratingRef.current=true;
+    sGeneratingDailyHeadline(true);
+    const pl=S.players||[];
+    const playerNames=pl.map(p=>p.nickname||p.name).filter(Boolean).slice(0,8).join(", ")||"atletas";
+    const sponsorNames=(S.sponsors||[]).slice(0,5).map(s=>s.name).filter(Boolean).join(", ")||"patrocinadores";
+    const commentatorsList=(S.commentators||[]).map(c=>`${c.name} (${c.type==="narrator"?"narrador":"comentarista"})`).slice(0,10).join("; ")||"Galvão Bueno (narrador), Neto (comentarista)";
+    const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
+    const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
+    const prompt=`Você é um editor de portal esportivo. Gere uma manchete do dia para o Futsabão (campeonato de futebol de sabão).
+Contexto: Hoje é ${todayFormatted}. O torneio será em ${tournamentDateStr}.
+Use estes dados na manchete ou no corpo: jogadores (${playerNames}), estádio ${STADIUM.name} (${STADIUM.location}), árbitro ${REFEREE.name}${sponsorNames!=="patrocinadores"?`, patrocinadores: ${sponsorNames}`:""}.
+Comentaristas da transmissão: ${commentatorsList}.
+
+Responda em EXATAMENTE 3 linhas, sem título extra:
+Linha 1: MANCHETE curta e impactante (máx 80 caracteres).
+Linha 2: CORPO em 1 a 3 frases (máx 200 caracteres).
+Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. Use dois nomes reais da lista acima. Formato: "[Nome 1] acha que... [Nome 2] discorda e acha que..." (máx 150 caracteres).`;
+    callGemini(prompt,S.geminiKey).then(raw=>{
+      let headline="Manchete do dia",body="",dispute="";
+      if(raw){
+        const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean);
+        if(lines.length>=1)headline=lines[0].replace(/^["']|["']$/g,"").slice(0,100);
+        if(lines.length>=2)body=lines[1].replace(/^["']|["']$/g,"").slice(0,300);
+        if(lines.length>=3)dispute=lines[2].replace(/^["']|["']$/g,"").slice(0,180);
+      }
+      up({dailyHeadline:{date:today,headline,body,dispute}});
+    }).finally(()=>{dailyHeadlineGeneratingRef.current=false;sGeneratingDailyHeadline(false);});
+  },[S.geminiKey,S.dailyHeadline,S.players,S.sponsors,S.commentators,S.tournamentStartAt,today]);
+  useEffect(()=>{
+    if(!S.geminiKey||cartolaGeneratingRef.current)return;
+    if(S.cartolaMessage&&S.cartolaMessage.date===today)return;
+    cartolaGeneratingRef.current=true;
+    sGeneratingCartola(true);
+    const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
+    const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
+    const playerNames=(S.players||[]).map(p=>p.nickname||p.name).filter(Boolean).slice(0,5).join(", ")||"atletas";
+    const prompt=`Você é um dirigente de futebol caricato, das antigas, autoritário e folclórico (estilo Eurico Miranda). Está falando aos jogadores/atletas do Futsabão (campeonato de futebol de sabão). Hoje é ${todayFormatted}. O torneio será em ${tournamentDateStr}. Jogadores: ${playerNames}. Gere UMA única frase ou duas curtas (máx 150 caracteres), em primeira pessoa, como um recado do "cartola" ao elenco. Tom: autoritário, folclórico, pode falar em "meu clube", "meus atletas", "disciplina", "título". Responda APENAS o texto da fala, sem aspas nem título.`;
+    callGemini(prompt,S.geminiKey).then(raw=>{
+      const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,180)||"A diretoria está de olho. Disciplina e respeito ao mando.";
+      up({cartolaMessage:{date:today,text}});
+    }).finally(()=>{cartolaGeneratingRef.current=false;sGeneratingCartola(false);});
+  },[S.geminiKey,S.cartolaMessage,S.players,S.tournamentStartAt,today]);
+  useEffect(()=>{
+    if(!S.geminiKey||torcedorGeneratingRef.current)return;
+    if(S.torcedorMessage&&S.torcedorMessage.date===today)return;
+    torcedorGeneratingRef.current=true;
+    sGeneratingTorcedor(true);
+    const playerNames=(S.players||[]).map(p=>p.nickname||p.name).filter(Boolean).slice(0,5).join(", ")||"a galera";
+    const prompt=`Você é um torcedor que corneta os atletas do Futsabão (campeonato de futebol de sabão). Zoação leve, provocação engraçada, sem ofensa. Fale para "a galera" ou para os jogadores (${playerNames}). Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Ex: "A torcida manda avisar...", "Vamos ver no jogo...", "Não adianta treino se no jogo...". Responda APENAS o texto da corneta, sem aspas nem título.`;
+    callGemini(prompt,S.geminiKey).then(raw=>{
+      const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,180)||"A torcida tá de olho. No jogo a gente vê quem é quem.";
+      up({torcedorMessage:{date:today,text}});
+    }).finally(()=>{torcedorGeneratingRef.current=false;sGeneratingTorcedor(false);});
+  },[S.geminiKey,S.torcedorMessage,S.players,today]);
   useEffect(()=>{const bc=getBroadcastChannel();if(!bc)return;const h=(e)=>{if(e.data?.type==="goal"){sGoalNotif({player:e.data.player,team:e.data.team});try{navigator.vibrate?.([200,100,200]);}catch(e){}setTimeout(()=>sGoalNotif(null),4000);}};bc.addEventListener("message",h);return()=>bc.removeEventListener("message",h);},[]);
   const{teams:tm,matches:mt,players:pl}=S;
   const gt=id=>tm.find(t=>t.id===id);
@@ -422,6 +506,11 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
   // Last results
   const lastResults=played.slice(-6).reverse();
   const hasTournament=mt.length>0;
+  // Pré-torneio: data alvo e countdown
+  const tournamentTargetDate=S.tournamentStartAt?new Date(S.tournamentStartAt):(function(){const d=new Date();d.setDate(d.getDate()+7);d.setHours(0,0,0,0);return d;})();
+  const nowPre=new Date();
+  const daysUntilStart=Math.max(0,Math.ceil((tournamentTargetDate-nowPre)/(24*60*60*1000)));
+  const startDateFormatted=tournamentTargetDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
   return <div style={{paddingTop:10,paddingBottom:44}}>
     {/* Logo header */}
     <div style={{textAlign:"center",marginBottom:24}}>
@@ -430,6 +519,14 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
         <span style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gDm,letterSpacing:"0.15em"}}>★ ★ ★ ★ ★</span>
       </div>
     </div>
+    {/* Welcome banner after registration */}
+    {justRegistered&&loggedPlayer&&<G style={{textAlign:"center",padding:"24px 20px",marginBottom:16,border:`1px solid ${K.grn}30`,background:`linear-gradient(135deg,${K.grn}08,${K.grn}15)`}}>
+      <div style={{fontSize:48,marginBottom:10}}>✅</div>
+      <h3 style={{fontFamily:fH,fontSize:20,color:K.grn,marginBottom:8}}>Cadastro realizado com sucesso!</h3>
+      <p style={{color:K.tx,fontSize:14,lineHeight:1.5,marginBottom:12}}>Entre no app todos os dias pois teremos novidades!</p>
+      <p style={{fontSize:12,color:K.txD,marginBottom:14}}>Endereço: <a href="https://futsabao.vercel.app/" style={{color:K.gold,fontWeight:600,textDecoration:"underline"}}>futsabao.vercel.app</a></p>
+      <BT onClick={()=>sJustRegistered(false)} v="grn" style={{fontSize:12,padding:"8px 24px"}}>ENTENDIDO!</BT>
+    </G>}
     {/* Athlete action: register */}
     {role==="athlete"&&!loggedPlayer&&<G hover style={{cursor:"pointer",padding:"14px 18px",marginBottom:16,border:`1px solid ${K.grn}18`}} onClick={()=>go("register")}>
       <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -446,28 +543,88 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
           <div style={{flex:1}}><span style={{fontFamily:fC,fontWeight:700,fontSize:12,color:"#8B5CF6"}}>{loggedPlayer.name}</span><span style={{fontSize:10,color:K.txD,marginLeft:6}}>conectado</span></div>
         </div>
       </G>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
         <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>go("bolao")}>
           <span style={{fontSize:20,display:"block"}}>🎰</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:"#F39C12",marginTop:4}}>BOLÃO</div>
         </G>
         <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>go("gallery")}>
           <span style={{fontSize:20,display:"block"}}>📸</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.grn,marginTop:4}}>FOTOS</div>
         </G>
+        <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>{up({viewPlayerId:loggedPlayer.id});go("playerstats");}}>
+          <span style={{fontSize:20,display:"block"}}>📊</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.blu,marginTop:4}}>MINHA FICHA</div>
+        </G>
       </div>
+      {/* Meus números */}
+      {(()=>{const myBetsCount=Object.entries(S.bets||{}).filter(([,arr])=>arr.some(b=>b.playerId===loggedPlayer.id)).length;const myVotesCount=Object.entries(S.votes||{}).filter(([,arr])=>arr.some(v=>v.voterId===loggedPlayer.id)).length;if(myBetsCount===0&&myVotesCount===0)return null;return <div style={{display:"flex",gap:12,marginTop:8,flexWrap:"wrap"}}><span style={{fontSize:10,color:K.txD}}>Meus palpites: <b style={{color:K.tx}}>{myBetsCount}</b></span><span style={{fontSize:10,color:K.txD}}>Votei MVP em: <b style={{color:K.tx}}>{myVotesCount}</b> jogo{myVotesCount!==1?"s":""}</span></div>;})()}
     </div>}
+    {/* Card Meu time — quando logado e tem time */}
+    {loggedPlayer&&hasTournament&&(()=>{const myTeam=tm.find(t=>t.playerIds?.includes(loggedPlayer.id));if(!myTeam)return null;const pos=st.findIndex(s=>s.team.id===myTeam.id)+1;const nextM=upcoming.find(m=>m.homeTeamId===myTeam.id||m.awayTeamId===myTeam.id);const nextOpp=nextM?gt(nextM.homeTeamId===myTeam.id?nextM.awayTeamId:nextM.homeTeamId):null;return <G style={{marginBottom:16,padding:14,border:`1px solid ${(myTeam.color?.bg||K.acc)+"30"}`}}>
+      <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.txD,letterSpacing:"0.08em",marginBottom:6}}>MEU TIME</div>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <Badge team={myTeam} size={36}/>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:700,fontSize:14,color:K.tx}}>{myTeam.name}</div>
+          <div style={{fontSize:11,color:K.txD,marginTop:2}}>{pos}º na classificação</div>
+          {nextOpp&&<div style={{fontSize:10,color:K.txM,marginTop:4}}>Próximo jogo: vs {nextOpp.name}</div>}
+        </div>
+      </div>
+    </G>;})()}
+    {/* Manchete do dia — uma por dia, com disputa entre comentaristas */}
+    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📰 MANCHETE DO DIA<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
+      <G style={{padding:18,borderLeft:`4px solid ${K.gold}`,background:K.gold+"06"}}>
+        <div style={{fontFamily:fH,fontSize:18,fontWeight:700,color:K.tx,marginBottom:10,lineHeight:1.3}}>{S.dailyHeadline.headline}</div>
+        {S.dailyHeadline.body&&<p style={{fontSize:13,color:K.txD,lineHeight:1.5,marginBottom:12}}>{S.dailyHeadline.body}</p>}
+        {S.dailyHeadline.dispute&&<div style={{padding:"10px 14px",borderRadius:10,border:`1px solid ${K.bdh}`,background:K.bg2}}>
+          <div style={{fontSize:10,fontWeight:700,color:K.gDm,fontFamily:fC,letterSpacing:"0.06em",marginBottom:6}}>🎙️ NA MESA — Comentaristas discordam</div>
+          <p style={{fontSize:12,color:K.tx,fontStyle:"italic",lineHeight:1.45}}>"{S.dailyHeadline.dispute}"</p>
+        </div>}
+      </G>
+    </div>}
+    {generatingDailyHeadline&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando manchete do dia...</span></G>}
+    {/* O Cartola falou — uma por dia */}
+    {(S.cartolaMessage&&S.cartolaMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>👔 O CARTOLA FALOU<div style={{flex:1,height:1,background:K.acc+"15"}}/></div>
+      <G style={{padding:16,borderLeft:`4px solid ${K.acc}`,background:K.acc+"08"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.cartolaMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Palavra do dirigente · {today}</div>
+      </G>
+    </div>}
+    {generatingCartola&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando palavra do Cartola...</span></G>}
+    {/* O Torcedor mandou — corneta do dia */}
+    {(S.torcedorMessage&&S.torcedorMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📢 O TORCEDOR MANDOU<div style={{flex:1,height:1,background:"#F9731615"}}/></div>
+      <G style={{padding:16,borderLeft:`4px solid #F97316`,background:"#F9731608"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.torcedorMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Corneta do dia · {today}</div>
+      </G>
+    </div>}
+    {generatingTorcedor&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando corneta do Torcedor...</span></G>}
     {/* Pergunta do jornalista — só para atleta logado que ainda não respondeu nesta visita */}
     {loggedPlayer&&!hasSubmittedInterview&&(()=>{
       const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
       if(!interviewPick.current)interviewPick.current={journalist:jList[Math.floor(Math.random()*jList.length)],question:JOURNALIST_QUESTIONS[Math.floor(Math.random()*JOURNALIST_QUESTIONS.length)]};
       const{journalist,question}=interviewPick.current;
-      const submit=()=>{
+      const submit=async()=>{
         const ans=interviewAnswer.trim();
         if(!ans)return;
         const outlets=BROADCASTERS?.length?BROADCASTERS:[{id:"b1",name:"Cazé TV",color:"#FF4654"}];
         const outlet=outlets[Math.floor(Math.random()*outlets.length)];
         const playerName=loggedPlayer.name||"Atleta";
-        const headline=`${playerName} responde sobre o torneio`;
-        const body=`${outlet.name}: ${journalist.name} perguntou a ${playerName}: "${question}" Resposta: ${ans.slice(0,250)}`;
+        let headline=`${playerName} responde sobre o torneio`;
+        let body=`${outlet.name}: ${journalist.name} perguntou a ${playerName}: "${question}" Resposta: ${ans.slice(0,250)}`;
+        const gk=S.geminiKey;
+        if(gk){
+          sGeneratingNews(true);
+          const prompt=`Você é um editor do veículo "${outlet.name}". O jornalista ${journalist.name} fez a seguinte pergunta ao atleta ${playerName}: "${question}". A resposta do atleta foi: "${ans.slice(0,250)}". Gere uma mini-notícia em exatamente 2 linhas. Primeira linha: manchete curta (estilo portal esportivo, máx 60 caracteres). Segunda linha: texto da mini-notícia em 2 ou 3 frases no estilo do veículo e do jornalista. Responda APENAS com essas duas linhas, sem título extra.`;
+          const raw=await callGemini(prompt,gk);
+          if(raw){
+            const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean);
+            if(lines.length>=1)headline=lines[0].slice(0,120);
+            if(lines.length>=2)body=lines.slice(1).join(" ").slice(0,400);
+          }
+          sGeneratingNews(false);
+        }
         const newItem={id:uid(),journalistId:journalist.id,journalistName:journalist.name,playerId:loggedPlayer.id,playerName:playerName,question,answer:ans.slice(0,250),outletId:outlet.id,outletName:outlet.name,outletColor:outlet.color||K.gold,headline,body,createdAt:new Date().toISOString()};
         up({athleteNews:[...(S.athleteNews||[]),newItem]});
         sHasSubmittedInterview(true);
@@ -478,7 +635,7 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
         <p style={{fontSize:14,color:K.tx,fontWeight:600,marginBottom:12,lineHeight:1.4}}>{question}</p>
         <textarea value={interviewAnswer} onChange={e=>sInterviewAnswer(e.target.value.slice(0,250))} placeholder="Sua resposta (até 250 caracteres)..." maxLength={250} rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:9,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
         <div style={{fontSize:10,color:K.txD,marginTop:4}}>{interviewAnswer.length}/250</div>
-        <BT onClick={submit} disabled={!interviewAnswer.trim()} style={{marginTop:12}}>PUBLICAR RESPOSTA</BT>
+        <BT onClick={submit} disabled={!interviewAnswer.trim()||generatingNews} style={{marginTop:12}}>{generatingNews?"GERANDO NOTÍCIA...":"PUBLICAR RESPOSTA"}</BT>
       </G>;
     })()}
     {/* Feed de mini-notícias — todos veem */}
@@ -521,7 +678,17 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
     {/* Broadcasters */}
     <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>{BROADCASTERS.map(b=><span key={b.id} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:7,background:b.color+"0D",border:`1px solid ${b.color}15`,fontSize:11,fontWeight:700,fontFamily:fC,color:b.color}}>{b.icon} {b.name}</span>)}</div>
 
-    {!hasTournament?<G style={{textAlign:"center",padding:30}}><span style={{fontSize:28,display:"block",marginBottom:8}}>🏆</span><p style={{color:K.txD,fontSize:13}}>O campeonato ainda não começou.</p><p style={{color:K.txM,fontSize:11,marginTop:4}}>Aguarde o organizador gerar a tabela.</p></G>:<>
+    {!hasTournament?<G style={{padding:24,textAlign:"center",border:`1px solid ${K.gold}20`,background:`linear-gradient(180deg,${K.gold}08 0%,transparent 100%)`}}>
+      <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gold,letterSpacing:"0.12em",marginBottom:6}}>{daysUntilStart>0?`DIA -${daysUntilStart}`:"É HOJE!"}</div>
+      <span style={{fontSize:32,display:"block",marginBottom:8}}>🏆</span>
+      <p style={{fontFamily:fH,fontSize:20,fontWeight:700,color:K.tx,marginBottom:4}}>{daysUntilStart>0?`Faltam ${daysUntilStart} dia${daysUntilStart!==1?"s":""}`:"O torneio começa hoje!"}</p>
+      <p style={{fontSize:12,color:K.txD,marginBottom:16}}>O torneio começa em {startDateFormatted}</p>
+      <div style={{padding:"10px 16px",borderRadius:10,background:K.acc+"12",border:`1px solid ${K.acc}25`,display:"inline-block",marginBottom:14}}>
+        <span style={{fontFamily:fH,fontSize:22,fontWeight:700,color:K.accL}}>{pl.length}</span>
+        <span style={{fontSize:12,color:K.txD,marginLeft:6}}>atleta{pl.length!==1?"s":""} já garantido{pl.length!==1?"s":""}</span>
+      </div>
+      <p style={{fontSize:12,color:K.txM,lineHeight:1.5,maxWidth:320,margin:"0 auto"}}>Aqueça a torcida! Convide os amigos, responda ao jornalista e acompanhe quem já está inscrito.</p>
+    </G>:<>
       {/* CLASSIFICAÇÃO */}
       {st.length>0&&<div style={{marginBottom:16}}>
         <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📊 CLASSIFICAÇÃO<div style={{flex:1,height:1,background:"#F9761612"}}/></div>
@@ -549,12 +716,15 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
         <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.grn,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📅 PRÓXIMAS PARTIDAS ({upcoming.length})<div style={{flex:1,height:1,background:K.grn+"12"}}/></div>
         <div style={{display:"grid",gap:6}}>{upcoming.slice(0,6).map(m=>{const h=gt(m.homeTeamId),a=gt(m.awayTeamId);if(!h||!a)return null;
           const hasBet=loggedPlayer&&(S.bets[m.id]||[]).some(b=>b.playerId===loggedPlayer.id);
+          const gk=S.geminiKey;
+          const genHype=async()=>{if(!gk||m.hypeText)return;sLoadingHypeId(m.id);const prompt=`Próxima partida de futebol (Futsabão): ${h.name} vs ${a.name}. Gere 1 ou 2 frases de "hype" ou preview no estilo de narração de jogo grande (empolgação, expectativa). Responda APENAS o texto, sem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,hypeText:text.slice(0,250)}:x)});sLoadingHypeId(null);};
           return <G key={m.id} hover={!!loggedPlayer} style={{padding:"10px 14px",cursor:loggedPlayer?"pointer":"default"}} onClick={()=>loggedPlayer&&go("bolao")}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <Badge team={h} size={22}/><span style={{fontFamily:fC,fontWeight:700,fontSize:12,flex:1,textAlign:"right"}}>{h.name}</span>
               <span style={{fontFamily:fH,fontWeight:700,color:K.txM,fontSize:12,padding:"2px 10px",borderRadius:6,background:K.gold+"08",border:`1px solid ${K.gold}10`}}>VS</span>
               <span style={{fontFamily:fC,fontWeight:700,fontSize:12,flex:1}}>{a.name}</span><Badge team={a} size={22}/>
             </div>
+            {m.hypeText?<p style={{fontSize:11,color:K.txD,lineHeight:1.4,marginTop:8,paddingTop:8,borderTop:`1px solid ${K.bd}`}}>{m.hypeText}</p>:gk&&<button type="button" onClick={e=>{e.stopPropagation();genHype();}} disabled={!!loadingHypeId} style={{marginTop:6,background:"none",border:"none",color:K.grn,cursor:loadingHypeId?"default":"pointer",fontSize:10,fontFamily:fC}}>{loadingHypeId===m.id?"Gerando...":"Ver análise"}</button>}
             {loggedPlayer&&<div style={{textAlign:"center",marginTop:4}}>
               {hasBet?<span style={{fontSize:9,color:K.grn,fontFamily:fC}}>✅ Palpite feito</span>:<span style={{fontSize:9,color:"#F39C12",fontFamily:fC}}>🎰 Fazer palpite</span>}
             </div>}
@@ -570,12 +740,16 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
           const mVotes=S.votes[m.id]||[];const mTally={};mVotes.forEach(v=>{mTally[v.mvpId]=(mTally[v.mvpId]||0)+1;});
           const mvpEntry=Object.entries(mTally).sort((a,b)=>b[1]-a[1])[0];const mvpPlayer=mvpEntry?pl.find(p=>p.id===mvpEntry[0]):null;
           const mvpTeam=mvpPlayer?tm.find(t=>t.playerIds?.includes(mvpPlayer.id)):null;
+          const gk=S.geminiKey;
+          const genFlash=async()=>{if(!gk||m.postMatchFlash)return;sLoadingFlashId(m.id);const goals=(m.goals||[]).map(g=>{const p=pl.find(x=>x.id===g.playerId);return p?(p.nickname||p.name):"?";});const prompt=`Partida de futebol (Futsabão) encerrada: ${h.name} ${m.homeScore} × ${m.awayScore} ${a.name}.${goals.length?` Gols: ${goals.join(", ")}.`:""}${mvpPlayer?` MVP da partida: ${mvpPlayer.nickname||mvpPlayer.name}.`:""} Gere em 1 ou 2 frases um "flash" de narrador esportivo (tom emocionante, resumo do jogo). Responda APENAS com o texto do flash, sem aspas nem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,postMatchFlash:text.slice(0,300)}:x)});sLoadingFlashId(null);};
+          const genMvpQuote=async()=>{if(!gk||!mvpPlayer||m.mvpQuote)return;sLoadingMvpId(m.id);const prompt=`O jogador ${mvpPlayer.nickname||mvpPlayer.name} foi eleito MVP da partida ${h.name} ${m.homeScore} × ${m.awayScore} ${a.name}. Gere UMA frase curta como se fosse a reação dele no pós-jogo (ex: "Time entregou tudo!", "Não acredito!"). Tom natural, brasileiro. Responda APENAS a frase, entre aspas.`;const text=await callGemini(prompt,gk);const quote=text?(text.replace(/^["']|["']$/g,"").trim().slice(0,150)):null;if(quote)up({matches:mt.map(x=>x.id===m.id?{...x,mvpQuote:quote}:x)});sLoadingMvpId(null);};
           return <G key={m.id} hover style={{padding:"10px 14px",cursor:"pointer"}} onClick={()=>{go("matchview",{currentMatch:m.id});}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <Badge team={h} size={22}/><span style={{fontFamily:fC,fontWeight:700,fontSize:12,flex:1,textAlign:"right"}}>{h.name}</span>
               <div style={{textAlign:"center",minWidth:60}}><span style={{fontFamily:fH,fontWeight:700,color:K.gold,fontSize:16}}>{m.homeScore} × {m.awayScore}</span>{ko&&tied&&m.hPen!=null&&<div style={{fontFamily:fC,fontSize:9,color:K.gold}}>Pên:{m.hPen}×{m.aPen}</div>}</div>
               <span style={{fontFamily:fC,fontWeight:700,fontSize:12,flex:1}}>{a.name}</span><Badge team={a} size={22}/>
             </div>
+            {m.postMatchFlash?<p style={{fontSize:11,color:K.txD,lineHeight:1.4,marginTop:8,paddingTop:8,borderTop:`1px solid ${K.bd}`}}>Flash: {m.postMatchFlash}</p>:gk&&<button type="button" onClick={e=>{e.stopPropagation();genFlash();}} disabled={!!loadingFlashId} style={{marginTop:6,background:"none",border:"none",color:K.blu,cursor:loadingFlashId?"default":"pointer",fontSize:10,fontFamily:fC}}>{loadingFlashId===m.id?"Gerando...":"Gerar flash"}</button>}
             {/* MVP badge inline */}
             {mvpPlayer?<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:6,padding:"4px 10px",borderRadius:8,background:K.gold+"08",border:`1px solid ${K.gold}10`}}>
               <span style={{fontSize:10}}>👑</span>
@@ -589,6 +763,7 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
               <span style={{fontSize:9,color:K.gold,fontFamily:fC}}>🏆 Votar MVP</span>
               <span style={{fontSize:9,color:K.grn,fontFamily:fC}}>📸 Fotos</span>
             </div>}
+            {mvpPlayer&&(m.mvpQuote?<p style={{fontSize:10,color:K.txD,fontStyle:"italic",marginTop:4}}>Reação: "{m.mvpQuote}"</p>:gk&&<button type="button" onClick={e=>{e.stopPropagation();genMvpQuote();}} disabled={!!loadingMvpId} style={{marginTop:4,background:"none",border:"none",color:K.gold,cursor:loadingMvpId?"default":"pointer",fontSize:10,fontFamily:fC}}>{loadingMvpId===m.id?"Gerando...":"Gerar reação do MVP"}</button>)}
           </G>;
         })}</div>
       </div>}
@@ -666,6 +841,81 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
   </div>;
 }
 
+/* ══════════ MODERAÇÃO (ADMIN) ══════════ */
+function Moderation({S,up,go}){
+  const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
+  const[delHeadline,sDelHeadline]=useState(false);
+  const[delCartola,sDelCartola]=useState(false);
+  const[delTorcedor,sDelTorcedor]=useState(false);
+  const[delNewsId,sDelNewsId]=useState(null);
+  const[delChat,sDelChat]=useState(null);
+  const gt=id=>S.teams.find(t=>t.id===id);
+  return <div style={{paddingTop:20,paddingBottom:40}}>
+    <BB onClick={()=>go("home")} crumb="MODERAÇÃO"/>
+    <SH icon="🛡️" title="MODERAÇÃO" sub="Excluir comentários e mensagens de todos" color="#E74C3C"/>
+    {/* Manchete do dia */}
+    {S.dailyHeadline&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.gold,letterSpacing:"0.06em",marginBottom:6}}>📰 MANCHETE DO DIA</div>
+      <G style={{padding:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div><div style={{fontWeight:700,fontSize:13,color:K.tx}}>{S.dailyHeadline.headline}</div><div style={{fontSize:10,color:K.txD,marginTop:4}}>{S.dailyHeadline.date}</div></div>
+        <BT onClick={()=>sDelHeadline(true)} v="red" style={{padding:"6px 12px",fontSize:11}}>EXCLUIR</BT>
+      </G>
+    </div>}
+    {/* Cartola */}
+    {S.cartolaMessage&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.accL,letterSpacing:"0.06em",marginBottom:6}}>👔 CARTOLA</div>
+      <G style={{padding:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div><p style={{fontSize:12,color:K.tx,fontStyle:"italic"}}>"{S.cartolaMessage.text}"</p><div style={{fontSize:10,color:K.txD,marginTop:4}}>{S.cartolaMessage.date}</div></div>
+        <BT onClick={()=>sDelCartola(true)} v="red" style={{padding:"6px 12px",fontSize:11}}>EXCLUIR</BT>
+      </G>
+    </div>}
+    {/* Torcedor */}
+    {S.torcedorMessage&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#F97316",letterSpacing:"0.06em",marginBottom:6}}>📢 TORCEDOR</div>
+      <G style={{padding:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div><p style={{fontSize:12,color:K.tx,fontStyle:"italic"}}>"{S.torcedorMessage.text}"</p><div style={{fontSize:10,color:K.txD,marginTop:4}}>{S.torcedorMessage.date}</div></div>
+        <BT onClick={()=>sDelTorcedor(true)} v="red" style={{padding:"6px 12px",fontSize:11}}>EXCLUIR</BT>
+      </G>
+    </div>}
+    {/* Feed de atletas (Plantão) */}
+    <div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.06em",marginBottom:8}}>📰 PLANTÃO — NOTÍCIAS DOS ATLETAS</div>
+      {(S.athleteNews||[]).length===0?<p style={{fontSize:12,color:K.txD}}>Nenhuma notícia.</p>:<div style={{display:"grid",gap:8}}>
+        {(S.athleteNews||[]).map(n=>(
+          <G key={n.id} style={{padding:12,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+            <div><div style={{fontWeight:700,fontSize:12,color:K.tx}}>{n.headline}</div><div style={{fontSize:10,color:K.txD}}>{n.outletName} · {n.createdAt?new Date(n.createdAt).toLocaleString("pt-BR"):""}</div></div>
+            <BT onClick={()=>sDelNewsId(n.id)} v="red" style={{padding:"5px 10px",fontSize:10}}>EXCLUIR</BT>
+          </G>
+        ))}
+      </div>}
+    </div>
+    {/* Chat da torcida */}
+    <div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#8B5CF6",letterSpacing:"0.06em",marginBottom:8}}>💬 CHAT DA TORCIDA</div>
+      {Object.keys(S.fanChat||{}).length===0?<p style={{fontSize:12,color:K.txD}}>Nenhuma mensagem.</p>:Object.entries(S.fanChat||{}).map(([chatKey,msgs])=>{
+        if(!msgs||!msgs.length)return null;
+        const match=S.matches.find(m=>m.id===chatKey);const ht=gt(match?.homeTeamId),at=gt(match?.awayTeamId);const matchLabel=match&&ht&&at?`${ht.name} × ${at.name}`:chatKey;
+        return <div key={chatKey} style={{marginBottom:12}}>
+          <div style={{fontSize:10,color:K.txM,marginBottom:6}}>Partida: {matchLabel}</div>
+          <div style={{display:"grid",gap:6}}>
+            {msgs.map(m=>(
+              <G key={m.id} style={{padding:10,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
+                <div><div style={{fontSize:11,fontWeight:700,color:K.tx}}>{m.name}</div><div style={{fontSize:12,color:K.txD}}>{m.text}</div><div style={{fontSize:9,color:K.txM}}>{m.time}</div></div>
+                <BT onClick={()=>sDelChat({chatKey,msgId:m.id})} v="red" style={{padding:"5px 10px",fontSize:10}}>EXCLUIR</BT>
+              </G>
+            ))}
+          </div>
+        </div>;
+      })}
+    </div>
+    <ConfirmDialog open={delHeadline} onCancel={()=>sDelHeadline(false)} onConfirm={()=>{up({dailyHeadline:null});sDelHeadline(false);}} title="Excluir manchete do dia?" message="A manchete do dia será removida. Amanhã uma nova pode ser gerada." confirmLabel="EXCLUIR" icon="📰"/>
+    <ConfirmDialog open={delCartola} onCancel={()=>sDelCartola(false)} onConfirm={()=>{up({cartolaMessage:null});sDelCartola(false);}} title="Excluir mensagem do Cartola?" message="A fala do Cartola será removida." confirmLabel="EXCLUIR" icon="👔"/>
+    <ConfirmDialog open={delTorcedor} onCancel={()=>sDelTorcedor(false)} onConfirm={()=>{up({torcedorMessage:null});sDelTorcedor(false);}} title="Excluir mensagem do Torcedor?" message="A corneta do Torcedor será removida." confirmLabel="EXCLUIR" icon="📢"/>
+    <ConfirmDialog open={!!delNewsId} onCancel={()=>sDelNewsId(null)} onConfirm={()=>{up({athleteNews:(S.athleteNews||[]).filter(n=>n.id!==delNewsId)});sDelNewsId(null);}} title="Excluir notícia?" message="Esta notícia do Plantão será removida." confirmLabel="EXCLUIR" icon="📰"/>
+    <ConfirmDialog open={!!delChat} onCancel={()=>sDelChat(null)} onConfirm={()=>{if(!delChat)return;const next={...S.fanChat,[delChat.chatKey]:(S.fanChat[delChat.chatKey]||[]).filter(m=>m.id!==delChat.msgId)};up({fanChat:next});sDelChat(null);}} title="Excluir mensagem do chat?" message="Esta mensagem da torcida será removida." confirmLabel="EXCLUIR" icon="💬"/>
+  </div>;
+}
+
 /* ══════════ ADMIN HOME ══════════ */
 function Home({S,go,REFEREE,STADIUM,BROADCASTERS,exportData,importData}){
   const pl=S.matches.filter(m=>m.played).length;
@@ -699,6 +949,7 @@ function Home({S,go,REFEREE,STADIUM,BROADCASTERS,exportData,importData}){
         {ic:"⚽",l:"ARTILHARIA",d:"Ranking de goleadores",s:"scorers",c:"#A855F7"},
         {ic:"🎙️",l:"TRANSMISSÃO",d:"Narradores, comentaristas, jornalistas e IA",s:"commentators",c:"#8B5CF6"},
         {ic:"📋",l:"SÚMULA",d:"Relatório oficial",s:"sumula",c:"#14B8A6"},
+        {ic:"🛡️",l:"MODERAÇÃO",d:"Excluir comentários e mensagens",s:"moderation",c:"#E74C3C"},
         {ic:"🏅",l:"PATROCINADORES",d:"Cadastro de patrocinadores",s:"sponsors",c:"#C4A561"},
       ].map((it,i)=>
         <G key={i} hover style={{cursor:"pointer",padding:"13px 16px"}} onClick={()=>go(it.s)}>
@@ -792,6 +1043,12 @@ function Register({S,up,go,role,sLoggedPlayer}){
     if(!f.name?.trim())return;
     const newPlayer={id:uid(),...f,rating:0};
     up({players:[...S.players,newPlayer]});
+    if(role==="athlete"&&sLoggedPlayer){
+      try{sessionStorage.setItem("futsabao_just_registered","1");}catch(e){}
+      sLoggedPlayer({id:newPlayer.id,name:newPlayer.nickname||newPlayer.name});
+      go("home");
+      return;
+    }
     sRegisteredPlayer(newPlayer);
     sD(true);
   };
@@ -807,7 +1064,6 @@ function Register({S,up,go,role,sLoggedPlayer}){
       <p style={{color:K.txD,marginTop:8}}>Agora é só esperar a convocação! 🧼⚽</p>
       <p style={{color:K.gDm,fontSize:13,marginTop:12,maxWidth:320,marginLeft:"auto",marginRight:"auto"}}>Guarde seu PIN de 4 dígitos — você precisará dele para acessar a Área do Atleta.</p>
       <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20,alignItems:"center"}}>
-        {role==="athlete"&&sLoggedPlayer&&registeredPlayer&&<BT onClick={()=>{sLoggedPlayer({id:registeredPlayer.id,name:registeredPlayer.nickname||registeredPlayer.name});go("home");}} style={{minWidth:220}}>IR PARA ÁREA DO ATLETA</BT>}
         {role==="admin"&&<BT onClick={()=>{sD(false);sRegisteredPlayer(null);}}>CADASTRAR OUTRO</BT>}
         {role==="admin"&&<BT onClick={()=>go("home")} v="gh">VOLTAR AO INÍCIO</BT>}
       </div>
@@ -990,6 +1246,12 @@ function Tournament({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
   if(tm.length<2)return <div style={{paddingTop:20,paddingBottom:40}}><BB onClick={()=>go("home")} crumb="CAMPEONATO"/><SH icon="🏆" title="CAMPEONATO" color={K.gBr}/><G style={{textAlign:"center",padding:36,marginTop:14}}><p style={{color:K.txD}}>Crie pelo menos 2 times.</p><BT onClick={()=>go("teams")} v="acc" style={{marginTop:14}}>MONTAR TIMES</BT></G></div>;
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="CAMPEONATO"/><SH icon="🏆" title="CAMPEONATO" color={K.gBr}/>
+    {/* Data de início do torneio — pré-torneio countdown para atletas */}
+    <G style={{marginTop:14,marginBottom:14,padding:16}}>
+      <LB>DATA DE INÍCIO DO TORNEIO</LB>
+      <p style={{fontSize:11,color:K.txD,marginBottom:10}}>Os atletas veem um countdown no app até essa data. Deixe em branco para usar 7 dias à frente.</p>
+      <input type="date" value={S.tournamentStartAt?S.tournamentStartAt.slice(0,10):""} onChange={e=>up({tournamentStartAt:e.target.value?new Date(e.target.value).toISOString():null})} style={{padding:"10px 14px",borderRadius:9,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:14,fontFamily:ff,width:"100%",maxWidth:260,boxSizing:"border-box"}}/>
+    </G>
     {!mt.length?<G style={{marginTop:14,padding:22}}>
       <LB>FORMATO</LB><div style={{display:"grid",gap:8,marginBottom:22}}>{[{id:"round-robin",l:"TODOS CONTRA TODOS",d:"Pontos corridos + mata-mata",ic:"🔄"},{id:"knockout",l:"MATA-MATA",d:"Eliminação direta · empate = pênaltis",ic:"⚔️"},{id:"two-groups",l:"2 GRUPOS",d:"Fase de grupos A e B + mata-mata",ic:"🏟️"},{id:"group-knockout",l:"GRUPOS + MATA-MATA",d:"2 grupos + eliminação cruzada",ic:"⚔️🏟️"}].map(f=><G key={f.id} hover style={{cursor:"pointer",padding:"14px 16px",border:`1px solid ${fmt===f.id?K.gold+"35":K.bd}`}} onClick={()=>sFmt(f.id)}><div style={{display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:28}}>{f.ic}</span><div><div style={{fontFamily:fC,fontWeight:700,fontSize:14,color:fmt===f.id?K.gold:K.tx}}>{f.l}</div><div style={{fontSize:12,color:K.txD}}>{f.d}</div></div></div></G>)}</div>
       {/* Knockout advancement selector */}
