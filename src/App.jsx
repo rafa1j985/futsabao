@@ -13,6 +13,19 @@ const genRR=(ids)=>{const m=[],t=[...ids];if(t.length%2)t.push(null);const R=t.l
 const genKO=(ids)=>{const s=shuf(ids),m=[];for(let i=0;i<s.length;i+=2)if(i+1<s.length)m.push(mk(1,"knockout",s[i],s[i+1]));return m;};
 const genTwoGroups=(ids)=>{const s=shuf(ids);const half=Math.ceil(s.length/2);const gA=s.slice(0,half),gB=s.slice(half);const mA=genRR(gA).map(m=>({...m,groupLabel:"A"}));const mB=genRR(gB).map(m=>({...m,groupLabel:"B"}));return{matches:[...mA,...mB],groups:{A:gA,B:gB}};};
 
+const JOURNALIST_QUESTIONS=[
+  "Qual seu maior objetivo neste torneio?",
+  "O que você acha que sua equipe precisa melhorar?",
+  "Quem é o jogador mais difícil de marcar?",
+  "Como você se prepara antes de uma partida?",
+  "Qual foi o momento mais marcante do campeonato até agora?",
+  "O que você espera da próxima partida?",
+  "Qual a maior qualidade do seu time?",
+  "Quem você torce para ser artilheiro?",
+  "O que o Futsabão significa para você?",
+  "Qual dica você daria para quem está começando?"
+];
+
 
 /* ══════════ SOUND ENGINE (#12) ══════════ */
 const SFX={
@@ -29,7 +42,7 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
-const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[]};
+const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[]};
 
 // Cloud save — debounced, strips transient fields. Returns { ok, error? } for UI feedback.
 const TRANSIENT_KEYS=["screen","currentMatch","viewPlayerId"];
@@ -391,8 +404,11 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer}){
 }
 
 /* ══════════ ATHLETE DASHBOARD (TOURNAMENT HOME) ══════════ */
-function AthleteDashboard({S,go,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
+function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
   const[goalNotif,sGoalNotif]=useState(null);
+  const[hasSubmittedInterview,sHasSubmittedInterview]=useState(false);
+  const[interviewAnswer,sInterviewAnswer]=useState("");
+  const interviewPick=useRef(null);
   useEffect(()=>{const bc=getBroadcastChannel();if(!bc)return;const h=(e)=>{if(e.data?.type==="goal"){sGoalNotif({player:e.data.player,team:e.data.team});try{navigator.vibrate?.([200,100,200]);}catch(e){}setTimeout(()=>sGoalNotif(null),4000);}};bc.addEventListener("message",h);return()=>bc.removeEventListener("message",h);},[]);
   const{teams:tm,matches:mt,players:pl}=S;
   const gt=id=>tm.find(t=>t.id===id);
@@ -437,6 +453,48 @@ function AthleteDashboard({S,go,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer})
         <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>go("gallery")}>
           <span style={{fontSize:20,display:"block"}}>📸</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.grn,marginTop:4}}>FOTOS</div>
         </G>
+      </div>
+    </div>}
+    {/* Pergunta do jornalista — só para atleta logado que ainda não respondeu nesta visita */}
+    {loggedPlayer&&!hasSubmittedInterview&&(()=>{
+      const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
+      if(!interviewPick.current)interviewPick.current={journalist:jList[Math.floor(Math.random()*jList.length)],question:JOURNALIST_QUESTIONS[Math.floor(Math.random()*JOURNALIST_QUESTIONS.length)]};
+      const{journalist,question}=interviewPick.current;
+      const submit=()=>{
+        const ans=interviewAnswer.trim();
+        if(!ans)return;
+        const outlets=BROADCASTERS?.length?BROADCASTERS:[{id:"b1",name:"Cazé TV",color:"#FF4654"}];
+        const outlet=outlets[Math.floor(Math.random()*outlets.length)];
+        const playerName=loggedPlayer.name||"Atleta";
+        const headline=`${playerName} responde sobre o torneio`;
+        const body=`${outlet.name}: ${journalist.name} perguntou a ${playerName}: "${question}" Resposta: ${ans.slice(0,250)}`;
+        const newItem={id:uid(),journalistId:journalist.id,journalistName:journalist.name,playerId:loggedPlayer.id,playerName:playerName,question,answer:ans.slice(0,250),outletId:outlet.id,outletName:outlet.name,outletColor:outlet.color||K.gold,headline,body,createdAt:new Date().toISOString()};
+        up({athleteNews:[...(S.athleteNews||[]),newItem]});
+        sHasSubmittedInterview(true);
+        sInterviewAnswer("");
+      };
+      return <G style={{marginBottom:16,padding:20,border:`1px solid #0EA5E920`}}>
+        <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.06em",marginBottom:8}}>🎤 {journalist.name} pergunta:</div>
+        <p style={{fontSize:14,color:K.tx,fontWeight:600,marginBottom:12,lineHeight:1.4}}>{question}</p>
+        <textarea value={interviewAnswer} onChange={e=>sInterviewAnswer(e.target.value.slice(0,250))} placeholder="Sua resposta (até 250 caracteres)..." maxLength={250} rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:9,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
+        <div style={{fontSize:10,color:K.txD,marginTop:4}}>{interviewAnswer.length}/250</div>
+        <BT onClick={submit} disabled={!interviewAnswer.trim()} style={{marginTop:12}}>PUBLICAR RESPOSTA</BT>
+      </G>;
+    })()}
+    {/* Feed de mini-notícias — todos veem */}
+    {(S.athleteNews||[]).length>0&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📰 PLANTÃO<div style={{flex:1,height:1,background:"#0EA5E915"}}/></div>
+      <div style={{display:"grid",gap:10}}>
+        {[...(S.athleteNews||[])].sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt))).map(n=>(
+          <G key={n.id} style={{padding:14,borderLeft:`3px solid ${n.outletColor||K.gold}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+              <span style={{fontSize:10,fontWeight:700,color:n.outletColor||K.gold,fontFamily:fC}}>{n.outletName}</span>
+              {n.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(n.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+            </div>
+            <div style={{fontFamily:fH,fontSize:14,fontWeight:700,color:K.tx,marginBottom:6}}>{n.headline}</div>
+            <p style={{fontSize:12,color:K.txD,lineHeight:1.5}}>{n.body}</p>
+          </G>
+        ))}
       </div>
     </div>}
     {/* Info cards */}
@@ -727,16 +785,33 @@ function Players({S,up,go}){
 }
 
 /* ══════════ REGISTER ══════════ */
-function Register({S,up,go,role}){
+function Register({S,up,go,role,sLoggedPlayer}){
   const[done,sD]=useState(false);
-  const sub=f=>{if(!f.name?.trim())return;up({players:[...S.players,{id:uid(),...f,rating:0}]});sD(true);};
+  const[registeredPlayer,sRegisteredPlayer]=useState(null);
+  const sub=f=>{
+    if(!f.name?.trim())return;
+    const newPlayer={id:uid(),...f,rating:0};
+    up({players:[...S.players,newPlayer]});
+    sRegisteredPlayer(newPlayer);
+    sD(true);
+  };
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} label={role==="admin"?"ADMIN":"VOLTAR"}/>
     <div style={{textAlign:"center",marginTop:20,marginBottom:24}}>
       <img src={LOGO} alt="" style={{maxWidth:200,width:"100%",display:"block",margin:"0 auto 12px"}}/>
       <p style={{color:K.txD,fontSize:13,marginTop:6}}>Preencha seus dados para se inscrever!</p>
     </div>
-    {done?<G style={{textAlign:"center",padding:40}}><div style={{fontSize:56,marginBottom:14}}>✅</div><h3 style={{fontFamily:fH,fontSize:22,color:K.gold}}>CADASTRO REALIZADO!</h3><p style={{color:K.txD,marginTop:8}}>Agora é só esperar a convocação! 🧼⚽</p><BT onClick={()=>sD(false)} style={{marginTop:18}}>CADASTRAR OUTRO</BT></G>
+    {done?<G style={{textAlign:"center",padding:40}}>
+      <div style={{fontSize:56,marginBottom:14}}>✅</div>
+      <h3 style={{fontFamily:fH,fontSize:22,color:K.gold}}>CADASTRO CONCLUÍDO COM SUCESSO!</h3>
+      <p style={{color:K.txD,marginTop:8}}>Agora é só esperar a convocação! 🧼⚽</p>
+      <p style={{color:K.gDm,fontSize:13,marginTop:12,maxWidth:320,marginLeft:"auto",marginRight:"auto"}}>Guarde seu PIN de 4 dígitos — você precisará dele para acessar a Área do Atleta.</p>
+      <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:20,alignItems:"center"}}>
+        {role==="athlete"&&sLoggedPlayer&&registeredPlayer&&<BT onClick={()=>{sLoggedPlayer({id:registeredPlayer.id,name:registeredPlayer.nickname||registeredPlayer.name});go("home");}} style={{minWidth:220}}>IR PARA ÁREA DO ATLETA</BT>}
+        {role==="admin"&&<BT onClick={()=>{sD(false);sRegisteredPlayer(null);}}>CADASTRAR OUTRO</BT>}
+        {role==="admin"&&<BT onClick={()=>go("home")} v="gh">VOLTAR AO INÍCIO</BT>}
+      </div>
+    </G>
     :<G style={{padding:24}}><PF onSubmit={sub} label="INSCREVER-SE"/></G>}
   </div>;
 }
