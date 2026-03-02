@@ -537,7 +537,7 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
   const lastResults=played.slice(-6).reverse();
   const hasTournament=mt.length>0;
   // Pré-torneio: data alvo e countdown
-  const tournamentTargetDate=S.tournamentStartAt?new Date(S.tournamentStartAt):(function(){const d=new Date();d.setDate(d.getDate()+7);d.setHours(0,0,0,0);return d;})();
+  const tournamentTargetDate=S.tournamentStartAt?new Date(S.tournamentStartAt):new Date(2026,2,7);
   const nowPre=new Date();
   const daysUntilStart=Math.max(0,Math.ceil((tournamentTargetDate-nowPre)/(24*60*60*1000)));
   const startDateFormatted=tournamentTargetDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
@@ -1402,7 +1402,6 @@ function Tournament({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
   const se=()=>{up({matches:mt.map(m=>m.id===emId?{...m,homeScore:eH,awayScore:eA,played:true,hPen:eHP,aPen:eAP}:m)});sEmId(null);};
   const rm=()=>{up({matches:mt.map(m=>m.id===emId?{...m,homeScore:null,awayScore:null,played:false,goals:[],hPen:null,aPen:null}:m)});sEmId(null);};
   const em=mt.find(m=>m.id===emId);
-  if(tm.length<2)return <div style={{paddingTop:20,paddingBottom:40}}><BB onClick={()=>go("home")} crumb="CAMPEONATO"/><SH icon="🏆" title="CAMPEONATO" color={K.gBr}/><G style={{textAlign:"center",padding:36,marginTop:14}}><p style={{color:K.txD}}>Crie pelo menos 2 times.</p><BT onClick={()=>go("teams")} v="acc" style={{marginTop:14}}>MONTAR TIMES</BT></G></div>;
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="CAMPEONATO"/><SH icon="🏆" title="CAMPEONATO" color={K.gBr}/>
     {/* Data de início do torneio — pré-torneio countdown para atletas */}
@@ -1411,7 +1410,7 @@ function Tournament({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
       <p style={{fontSize:11,color:K.txD,marginBottom:10}}>Os atletas veem um countdown no app até essa data. Deixe em branco para usar 7 dias à frente.</p>
       <input type="date" value={S.tournamentStartAt?S.tournamentStartAt.slice(0,10):""} onChange={e=>up({tournamentStartAt:e.target.value?new Date(e.target.value).toISOString():null})} style={{padding:"10px 14px",borderRadius:9,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:14,fontFamily:ff,width:"100%",maxWidth:260,boxSizing:"border-box"}}/>
     </G>
-    {!mt.length?<G style={{marginTop:14,padding:22}}>
+    {tm.length<2?<G style={{textAlign:"center",padding:36,marginTop:14}}><p style={{color:K.txD}}>Crie pelo menos 2 times.</p><BT onClick={()=>go("teams")} v="acc" style={{marginTop:14}}>MONTAR TIMES</BT></G>:!mt.length?<G style={{marginTop:14,padding:22}}>
       <LB>FORMATO</LB><div style={{display:"grid",gap:8,marginBottom:22}}>{[{id:"round-robin",l:"TODOS CONTRA TODOS",d:"Pontos corridos + mata-mata",ic:"🔄"},{id:"knockout",l:"MATA-MATA",d:"Eliminação direta · empate = pênaltis",ic:"⚔️"},{id:"two-groups",l:"2 GRUPOS",d:"Fase de grupos A e B + mata-mata",ic:"🏟️"},{id:"group-knockout",l:"GRUPOS + MATA-MATA",d:"2 grupos + eliminação cruzada",ic:"⚔️🏟️"}].map(f=><G key={f.id} hover style={{cursor:"pointer",padding:"14px 16px",border:`1px solid ${fmt===f.id?K.gold+"35":K.bd}`}} onClick={()=>sFmt(f.id)}><div style={{display:"flex",alignItems:"center",gap:12}}><span style={{fontSize:28}}>{f.ic}</span><div><div style={{fontFamily:fC,fontWeight:700,fontSize:14,color:fmt===f.id?K.gold:K.tx}}>{f.l}</div><div style={{fontSize:12,color:K.txD}}>{f.d}</div></div></div></G>)}</div>
       {/* Knockout advancement selector */}
       {needsKoConfig&&fmt!=="knockout"&&koOptions.length>0&&<div style={{marginBottom:18}}>
