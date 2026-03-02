@@ -42,7 +42,7 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
-const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{}};
+const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{},preTorneioFeed:[],lastFeedGenerationAt:null};
 
 // Cloud save — debounced, strips transient fields. Returns { ok, error? } for UI feedback.
 const TRANSIENT_KEYS=["screen","currentMatch","viewPlayerId"];
@@ -100,7 +100,7 @@ let K=DARK;
 const ff="'Barlow',sans-serif",fH="'Oswald',sans-serif",fC="'Barlow Condensed',sans-serif";
 
 /* ══════════ GLOBAL CSS ══════════ */
-const GS=`@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@600;700;800&display=swap');*{box-sizing:border-box;margin:0}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#8B7A4A40;border-radius:4px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}@keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes gw{0%,100%{box-shadow:0 0 20px rgba(196,165,97,0.06)}50%{box-shadow:0 0 50px rgba(196,165,97,0.15)}}@keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,0.4)}70%{box-shadow:0 0 0 10px rgba(46,204,113,0)}}@keyframes sh{0%{background-position:-200% 0}100%{background-position:200% 0}}@keyframes confetti-fall{0%{transform:translateY(-100vh) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}@keyframes goal-flash{0%{opacity:1;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}100%{opacity:0;transform:scale(1.3)}}@keyframes crown{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.2) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}`;
+const GS=`@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@600;700;800&display=swap');*{box-sizing:border-box;margin:0}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#8B7A4A40;border-radius:4px}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}@keyframes fu{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes gw{0%,100%{box-shadow:0 0 20px rgba(196,165,97,0.06)}50%{box-shadow:0 0 50px rgba(196,165,97,0.15)}}@keyframes lp{0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,0.4)}70%{box-shadow:0 0 0 10px rgba(46,204,113,0)}}@keyframes sh{0%{background-position:-200% 0}100%{background-position:200% 0}}@keyframes confetti-fall{0%{transform:translateY(-100vh) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}@keyframes goal-flash{0%{opacity:1;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}100%{opacity:0;transform:scale(1.3)}}@keyframes crown{0%{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.2) rotate(5deg);opacity:1}100%{transform:scale(1) rotate(0deg);opacity:1}}body{scroll-behavior:smooth}.athlete-action-card{transition:transform .2s,box-shadow .2s}.athlete-action-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)}`;
 
 /* ══════════ BG ══════════ */
 function GeoBg({light}){
@@ -435,6 +435,9 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
   const[generatingDailyHeadline,sGeneratingDailyHeadline]=useState(false);
   const[generatingCartola,sGeneratingCartola]=useState(false);
   const[generatingTorcedor,sGeneratingTorcedor]=useState(false);
+  const[collapseClassificacao,sCollapseClassificacao]=useState(false);
+  const[collapseProximas,sCollapseProximas]=useState(false);
+  const[collapseResultados,sCollapseResultados]=useState(false);
   const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
   useEffect(()=>{
     if(!S.geminiKey||dailyHeadlineGeneratingRef.current)return;
@@ -523,6 +526,53 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
       up({torcedorMessage:{date:today,text}});
     }).finally(()=>{torcedorGeneratingRef.current=false;sGeneratingTorcedor(false);});
   },[S.geminiKey,S.torcedorMessage,S.players,today]);
+  const feedGeneratingRef=useRef(false);
+  const FEED_AUTHORS=[{authorType:"reporter",authorLabel:"Reporter",icon:"📰",color:K.gold},{authorType:"comentarista",authorLabel:"Comentarista",icon:"🎙️",color:K.blu},{authorType:"cartola",authorLabel:"Cartola",icon:"👔",color:K.accL},{authorType:"torcedor",authorLabel:"Torcedor",icon:"📢",color:"#F97316"},{authorType:"presidente",authorLabel:"Presidente Rafão",icon:"🎩",color:"#3B82F6"},{authorType:"arbitro",authorLabel:"Árbitro Rodolfo",icon:"⚖️",color:"#14B8A6"}];
+  useEffect(()=>{
+    if(!S.geminiKey||hasTournament||feedGeneratingRef.current)return;
+    const feed=S.preTorneioFeed||[];
+    const feedToday=feed.filter(p=>p.createdAt&&p.createdAt.startsWith(today));
+    if(feedToday.length>=8)return;
+    const lastAt=S.lastFeedGenerationAt;
+    if(lastAt&&(Date.now()-lastAt)<45*60*1000)return;
+    feedGeneratingRef.current=true;
+    const author=FEED_AUTHORS[Math.floor(Math.random()*FEED_AUTHORS.length)];
+    const pl=S.players||[];
+    const playerNames=pl.map(p=>p.nickname||p.name).filter(Boolean).slice(0,8).join(", ")||"atletas";
+    const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
+    const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
+    const commentatorsList=(S.commentators||[]).map(c=>c.name).slice(0,5).join(", ")||"Galvão Bueno, Neto";
+    let prompt="";
+    if(author.authorType==="reporter"){
+      prompt=`Você é um REPÓRTER de portal esportivo. Está postando uma NOTÍCIA CURTA do pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Torneio em ${tournamentDateStr}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Estádio: ${STADIUM.name}.
+CITE pelo menos um atleta pelo nome. Pode falar do árbitro, do presidente, bastidores, críticas leves. Tom: portal esportivo, pré-jogo.
+Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+    }else if(author.authorType==="comentarista"){
+      prompt=`Você é um COMENTARISTA de transmissão. Está postando uma fala de PRÉ-JOGO sobre o Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros comentaristas: ${commentatorsList}.
+CITE jogadores pelo nome. Pode mencionar o árbitro, clima de transmissão, expectativa.
+Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+    }else if(author.authorType==="cartola"){
+      prompt=`Você é um CARTOLA (dirigente) CARICATO. Postando recado no pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
+CITE jogadores pelo nome. Pode falar do árbitro, do presidente, dar bronca, promessas absurdas. Tom: autoritário e zueiro.
+Uma ou duas frases curtas (máx 180 caracteres), primeira pessoa. Responda APENAS o texto, sem aspas nem título.`;
+    }else if(author.authorType==="torcedor"){
+      prompt=`Você é o TORCEDOR CORNETEIRO do Futsabão (futebol de sabão). Postando corneta de pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
+CITE jogadores pelo nome. Pode zoar o árbitro, o presidente, provocar. Tom: arquibancada, zoeira.
+Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+    }else if(author.authorType==="presidente"){
+      prompt=`Você é o PRESIDENTE (Rafão) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
+CITE atletas pelo nome. Pode falar do árbitro, dar declaração, crítica leve. Tom: presidente de federação, primeiro pessoa.
+Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+    }else{
+      prompt=`Você é o ÁRBITRO (Rodolfo Seifert) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Presidente Rafão também está na organização.
+CITE atletas pelo nome se fizer sentido. Pode falar do presidente, avisar que vai apitar firme, clima de pré-torneio. Tom: árbitro, primeira pessoa.
+Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+    }
+    callGemini(prompt,S.geminiKey).then(raw=>{
+      const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200)||"O pré-torneio segue a todo vapor!";
+      up({preTorneioFeed:[...(S.preTorneioFeed||[]),{id:uid(),authorType:author.authorType,authorLabel:author.authorLabel,text,createdAt:new Date().toISOString()}],lastFeedGenerationAt:Date.now()});
+    }).finally(()=>{feedGeneratingRef.current=false;});
+  },[S.geminiKey,S.preTorneioFeed,S.lastFeedGenerationAt,today,hasTournament,S.players,S.commentators,S.tournamentStartAt]);
   useEffect(()=>{const bc=getBroadcastChannel();if(!bc)return;const h=(e)=>{if(e.data?.type==="goal"){sGoalNotif({player:e.data.player,team:e.data.team});try{navigator.vibrate?.([200,100,200]);}catch(e){}setTimeout(()=>sGoalNotif(null),4000);}};bc.addEventListener("message",h);return()=>bc.removeEventListener("message",h);},[]);
   const{teams:tm,matches:mt,players:pl}=S;
   const gt=id=>tm.find(t=>t.id===id);
@@ -543,10 +593,10 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
   const startDateFormatted=tournamentTargetDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
   const reminderDateStr=tournamentTargetDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
   return <div style={{paddingTop:10,paddingBottom:44}}>
-    {/* Logo header */}
-    <div style={{textAlign:"center",marginBottom:24}}>
+    {/* Hero: logo + estrelas em bloco com fundo sutil */}
+    <div style={{textAlign:"center",marginBottom:24,padding:"20px 16px 24px",borderRadius:16,background:`linear-gradient(135deg,${K.gold}08 0%,${K.acc}06 50%,${K.gold}08 100%)`,border:`1px solid ${K.gold}20`}}>
       <div style={{marginBottom:12,animation:"gw 4s ease-in-out infinite"}}><img src={LOGO} alt="" style={{maxWidth:200,width:"100%",height:"auto",display:"block",margin:"0 auto",filter:"drop-shadow(0 8px 30px rgba(196,165,97,0.15))"}}/></div>
-      <div style={{display:"inline-block",padding:"4px 20px",borderRadius:20,background:`linear-gradient(90deg,transparent,${K.gold}0D,transparent)`,border:`1px solid ${K.gold}15`}}>
+      <div style={{display:"inline-block",padding:"6px 24px",borderRadius:20,background:`linear-gradient(90deg,transparent,${K.gold}0D,transparent)`,border:`1px solid ${K.gold}25`}}>
         <span style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gDm,letterSpacing:"0.15em"}}>★ ★ ★ ★ ★</span>
       </div>
     </div>
@@ -558,63 +608,73 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
       <p style={{fontSize:12,color:K.txD,marginBottom:14}}>Endereço: <a href="https://futsabao.vercel.app/" style={{color:K.gold,fontWeight:600,textDecoration:"underline"}}>futsabao.vercel.app</a></p>
       <BT onClick={()=>sJustRegistered(false)} v="grn" style={{fontSize:12,padding:"8px 24px"}}>ENTENDIDO!</BT>
     </G>}
-    {/* Athlete action: register */}
-    {role==="athlete"&&!loggedPlayer&&<G hover style={{cursor:"pointer",padding:"14px 18px",marginBottom:16,border:`1px solid ${K.grn}18`}} onClick={()=>go("register")}>
-      <div style={{display:"flex",alignItems:"center",gap:12}}>
-        <div style={{width:42,height:42,borderRadius:11,background:K.grn+"0D",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,border:`1px solid ${K.grn}12`}}>📝</div>
-        <div style={{flex:1}}><div style={{fontFamily:fC,fontWeight:700,fontSize:14,color:K.grn}}>INSCREVER-SE NO TORNEIO</div><div style={{fontSize:12,color:K.txD,marginTop:1}}>Preencha seus dados para participar</div></div>
-        <div style={{color:K.grn,fontSize:20}}>›</div>
+    {/* Athlete action: register — CTA mais destacado */}
+    {role==="athlete"&&!loggedPlayer&&<G hover style={{cursor:"pointer",padding:"16px 20px",marginBottom:16,border:`2px solid ${K.gold}40`,boxShadow:`0 4px 20px ${K.gold}25`}} onClick={()=>go("register")}>
+      <div style={{display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:48,height:48,borderRadius:12,background:K.grn+"12",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,border:`1px solid ${K.grn}25`}}>📝</div>
+        <div style={{flex:1}}><div style={{fontFamily:fC,fontWeight:700,fontSize:15,color:K.grn}}>INSCREVER-SE NO TORNEIO</div><div style={{fontSize:12,color:K.txD,marginTop:2}}>Preencha seus dados para participar</div></div>
+        <div style={{color:K.grn,fontSize:24}}>›</div>
       </div>
     </G>}
-    {/* Logged athlete actions */}
+    {/* Logged athlete: mini-header com avatar + badge Conectado */}
     {loggedPlayer&&<div style={{marginBottom:16}}>
-      <G style={{padding:"10px 14px",marginBottom:8,border:`1px solid #8B5CF618`}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:16}}>🏅</span>
-          <div style={{flex:1}}><span style={{fontFamily:fC,fontWeight:700,fontSize:12,color:"#8B5CF6"}}>{loggedPlayer.name}</span><span style={{fontSize:10,color:K.txD,marginLeft:6}}>conectado</span></div>
+      <G style={{padding:"12px 16px",marginBottom:10,border:`1px solid #8B5CF620`,background:`linear-gradient(90deg,${K.sf},${K.sf})`}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:40,height:40,borderRadius:12,background:K.gold+"20",border:`1px solid ${K.gold}30`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:fH,fontSize:16,fontWeight:700,color:K.gold,flexShrink:0}}>
+            {loggedPlayer.photo?<img src={loggedPlayer.photo} alt="" style={{width:"100%",height:"100%",borderRadius:12,objectFit:"cover"}}/>:(loggedPlayer.nickname||loggedPlayer.name||"A")[0].toUpperCase()}
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:fC,fontWeight:700,fontSize:14,color:K.tx}}>{loggedPlayer.nickname||loggedPlayer.name}</div>
+            <span style={{display:"inline-block",marginTop:2,padding:"2px 8px",borderRadius:6,fontSize:10,fontWeight:700,fontFamily:fC,color:K.grn,background:K.grn+"18",border:`1px solid ${K.grn}30`}}>Conectado</span>
+          </div>
         </div>
       </G>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-        <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>go("bolao")}>
-          <span style={{fontSize:20,display:"block"}}>🎰</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:"#F39C12",marginTop:4}}>BOLÃO</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>go("bolao")}>
+          <span style={{fontSize:26,display:"block"}}>🎰</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:"#F39C12",marginTop:6}}>BOLÃO</div>
         </G>
-        <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>go("gallery")}>
-          <span style={{fontSize:20,display:"block"}}>📸</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.grn,marginTop:4}}>FOTOS</div>
+        <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>go("gallery")}>
+          <span style={{fontSize:26,display:"block"}}>📸</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.grn,marginTop:6}}>FOTOS</div>
         </G>
-        <G hover style={{cursor:"pointer",padding:"12px 10px",textAlign:"center"}} onClick={()=>{up({viewPlayerId:loggedPlayer.id});go("playerstats");}}>
-          <span style={{fontSize:20,display:"block"}}>📊</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.blu,marginTop:4}}>MINHA FICHA</div>
+        <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>{up({viewPlayerId:loggedPlayer.id});go("playerstats");}}>
+          <span style={{fontSize:26,display:"block"}}>📊</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.blu,marginTop:6}}>MINHA FICHA</div>
         </G>
       </div>
       {/* Meus números */}
-      {(()=>{const myBetsCount=Object.entries(S.bets||{}).filter(([,arr])=>arr.some(b=>b.playerId===loggedPlayer.id)).length;const myVotesCount=Object.entries(S.votes||{}).filter(([,arr])=>arr.some(v=>v.voterId===loggedPlayer.id)).length;if(myBetsCount===0&&myVotesCount===0)return null;return <div style={{display:"flex",gap:12,marginTop:8,flexWrap:"wrap"}}><span style={{fontSize:10,color:K.txD}}>Meus palpites: <b style={{color:K.tx}}>{myBetsCount}</b></span><span style={{fontSize:10,color:K.txD}}>Votei MVP em: <b style={{color:K.tx}}>{myVotesCount}</b> jogo{myVotesCount!==1?"s":""}</span></div>;})()}
+      {(()=>{const myBetsCount=Object.entries(S.bets||{}).filter(([,arr])=>arr.some(b=>b.playerId===loggedPlayer.id)).length;const myVotesCount=Object.entries(S.votes||{}).filter(([,arr])=>arr.some(v=>v.voterId===loggedPlayer.id)).length;if(myBetsCount===0&&myVotesCount===0)return null;return <div style={{display:"flex",gap:12,marginTop:10,flexWrap:"wrap"}}><span style={{fontSize:10,color:K.txD}}>Meus palpites: <b style={{color:K.tx}}>{myBetsCount}</b></span><span style={{fontSize:10,color:K.txD}}>Votei MVP em: <b style={{color:K.tx}}>{myVotesCount}</b> jogo{myVotesCount!==1?"s":""}</span></div>;})()}
     </div>}
-    {/* Card Meu time — quando logado e tem time */}
-    {loggedPlayer&&hasTournament&&(()=>{const myTeam=tm.find(t=>t.playerIds?.includes(loggedPlayer.id));if(!myTeam)return null;const pos=st.findIndex(s=>s.team.id===myTeam.id)+1;const nextM=upcoming.find(m=>m.homeTeamId===myTeam.id||m.awayTeamId===myTeam.id);const nextOpp=nextM?gt(nextM.homeTeamId===myTeam.id?nextM.awayTeamId:nextM.homeTeamId):null;return <G style={{marginBottom:16,padding:14,border:`1px solid ${(myTeam.color?.bg||K.acc)+"30"}`}}>
-      <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.txD,letterSpacing:"0.08em",marginBottom:6}}>MEU TIME</div>
-      <div style={{display:"flex",alignItems:"center",gap:10}}>
-        <Badge team={myTeam} size={36}/>
-        <div style={{flex:1}}>
-          <div style={{fontWeight:700,fontSize:14,color:K.tx}}>{myTeam.name}</div>
-          <div style={{fontSize:11,color:K.txD,marginTop:2}}>{pos}º na classificação</div>
-          {nextOpp&&<div style={{fontSize:10,color:K.txM,marginTop:4}}>Próximo jogo: vs {nextOpp.name}</div>}
+    {/* Card Meu time — destaque com cor do time e próximo adversário */}
+    {loggedPlayer&&hasTournament&&(()=>{const myTeam=tm.find(t=>t.playerIds?.includes(loggedPlayer.id));if(!myTeam)return null;const pos=st.findIndex(s=>s.team.id===myTeam.id)+1;const nextM=upcoming.find(m=>m.homeTeamId===myTeam.id||m.awayTeamId===myTeam.id);const nextOpp=nextM?gt(nextM.homeTeamId===myTeam.id?nextM.awayTeamId:nextM.homeTeamId):null;const teamColor=myTeam.color?.bg||K.acc;return <G style={{marginBottom:16,padding:16,border:`2px solid ${teamColor}40`,background:`linear-gradient(135deg,${teamColor}0C 0%,${teamColor}04 100%)`,boxShadow:`0 4px 16px ${teamColor}15`}}>
+      <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.txD,letterSpacing:"0.08em",marginBottom:8}}>MEU TIME</div>
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <Badge team={myTeam} size={40}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:700,fontSize:15,color:K.tx}}>{myTeam.name}</div>
+          <div style={{fontSize:12,color:K.txD,marginTop:2}}>{pos}º na classificação</div>
+          {nextOpp&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}>
+            <span style={{fontSize:11,fontWeight:700,color:K.txM}}>Próximo jogo: vs {nextOpp.name}</span>
+            <Badge team={nextOpp} size={20}/>
+          </div>}
         </div>
       </div>
     </G>;})()}
     <div style={!hasTournament?{marginBottom:16,padding:16,borderRadius:12,border:`1px solid ${K.bd}`,background:K.bg2}:{}}>
     {!hasTournament&&<div style={{fontFamily:fC,fontSize:13,fontWeight:700,color:K.gold,letterSpacing:"0.1em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>📰 HOJE NO FUTSABÃO<div style={{flex:1,height:1,background:K.gold+"25"}}/></div>}
-    {/* Manchete do dia — uma por dia, com disputa entre comentaristas */}
-    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📰 MANCHETE DO DIA<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
-      <G style={{padding:18,borderLeft:`4px solid ${K.gold}`,background:K.gold+"06"}}>
-        <div style={{fontFamily:fH,fontSize:18,fontWeight:700,color:K.tx,marginBottom:10,lineHeight:1.3}}>{S.dailyHeadline.headline}</div>
-        {S.dailyHeadline.body&&<p style={{fontSize:13,color:K.txD,lineHeight:1.5,marginBottom:12}}>{S.dailyHeadline.body}</p>}
-        {S.dailyHeadline.dispute&&<div style={{padding:"10px 14px",borderRadius:10,border:`1px solid ${K.bdh}`,background:K.bg2}}>
+    {/* Manchete do dia — destaque único: card maior, animação */}
+    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&<div style={{marginBottom:20}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📰 MANCHETE DO DIA<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
+      <G style={{padding:22,borderLeft:`5px solid ${K.gold}`,background:K.gold+"08",animation:"fu 0.4s ease"}}>
+        <div style={{fontFamily:fH,fontSize:20,fontWeight:700,color:K.tx,marginBottom:12,lineHeight:1.3}}>{S.dailyHeadline.headline}</div>
+        {S.dailyHeadline.body&&<p style={{fontSize:14,color:K.txD,lineHeight:1.55,marginBottom:14}}>{S.dailyHeadline.body}</p>}
+        {S.dailyHeadline.dispute&&<div style={{padding:"12px 16px",borderRadius:10,border:`1px solid ${K.bdh}`,background:K.bg2}}>
           <div style={{fontSize:10,fontWeight:700,color:K.gDm,fontFamily:fC,letterSpacing:"0.06em",marginBottom:6}}>🎙️ NA MESA — Comentaristas discordam</div>
           <p style={{fontSize:12,color:K.tx,fontStyle:"italic",lineHeight:1.45}}>"{S.dailyHeadline.dispute}"</p>
         </div>}
       </G>
     </div>}
     {generatingDailyHeadline&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando manchete do dia...</span></G>}
+    {/* Separador sutil entre Manchete e demais editoriais */}
+    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&(S.cartolaMessage||S.torcedorMessage||S.presidentMessage||S.refereeMessage)&&<div style={{height:1,background:K.bd,marginBottom:16,maxWidth:120,marginLeft:"auto",marginRight:"auto"}}/>}
     {/* O Cartola falou — uma por dia */}
     {(S.cartolaMessage&&S.cartolaMessage.date===today)&&<div style={{marginBottom:16}}>
       <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>👔 O CARTOLA FALOU<div style={{flex:1,height:1,background:K.acc+"15"}}/></div>
@@ -650,6 +710,27 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
       </G>
     </div>}
     </div>
+    {/* Ao vivo no pré-torneio — feed de personagens */}
+    {!hasTournament&&(()=>{
+      const feed=(S.preTorneioFeed||[]).filter(p=>p.createdAt&&p.createdAt.startsWith(today)).sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt)));
+      const getAuthor=(type)=>{const x=FEED_AUTHORS.find(f=>f.authorType===type);return x||{authorLabel:type,icon:"💬",color:K.txD};};
+      if(feed.length===0)return <div style={{marginBottom:16}}><div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gDm,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📡 AO VIVO NO PRÉ-TORNEIO<div style={{flex:1,height:1,background:K.gold+"15"}}/></div><p style={{fontSize:12,color:K.txD,padding:"12px 0"}}>As notícias e falas do dia aparecem aqui ao longo do dia.</p></div>;
+      return <div style={{marginBottom:16}}>
+        <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📡 AO VIVO NO PRÉ-TORNEIO<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
+        <div style={{display:"grid",gap:10}}>
+          {feed.map(item=>{
+            const a=getAuthor(item.authorType);
+            return <G key={item.id} style={{padding:14,borderLeft:`4px solid ${a.color}`,background:a.color+"0C"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                <span style={{fontSize:12,fontWeight:700,color:a.color,fontFamily:fC}}>{a.icon} {item.authorLabel}</span>
+                {item.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(item.createdAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>}
+              </div>
+              <p style={{fontSize:13,color:K.tx,lineHeight:1.5,fontStyle:"italic"}}>"{item.text}"</p>
+            </G>;
+          })}
+        </div>
+      </div>;
+    })()}
     {/* Pergunta do jornalista — só para atleta logado que ainda não respondeu nesta visita */}
     {loggedPlayer&&!hasSubmittedInterview&&(()=>{
       const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
@@ -693,26 +774,32 @@ Responda APENAS com essas duas linhas, sem título extra.`;
         sHasSubmittedInterview(true);
         sInterviewAnswer("");
       };
-      return <G style={{marginBottom:16,padding:20,border:`1px solid #0EA5E920`}}>
-        <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.06em",marginBottom:8}}>🎤 {journalist.name} pergunta:</div>
-        <p style={{fontSize:14,color:K.tx,fontWeight:600,marginBottom:12,lineHeight:1.4}}>{question}</p>
-        <textarea value={interviewAnswer} onChange={e=>sInterviewAnswer(e.target.value.slice(0,250))} placeholder="Sua resposta (até 250 caracteres)..." maxLength={250} rows={3} style={{width:"100%",padding:"10px 12px",borderRadius:9,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
-        <div style={{fontSize:10,color:K.txD,marginTop:4}}>{interviewAnswer.length}/250</div>
-        <BT onClick={submit} disabled={!interviewAnswer.trim()||generatingNews} style={{marginTop:12}}>{generatingNews?"GERANDO NOTÍCIA...":"PUBLICAR RESPOSTA"}</BT>
+      return <G style={{marginBottom:16,padding:22,border:`2px solid #0EA5E935`,background:`linear-gradient(135deg,#0EA5E912,#0EA5E908)`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <span style={{fontSize:28}}>🎤</span>
+          <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.06em"}}>{journalist.name} pergunta:</div>
+        </div>
+        <p style={{fontSize:15,color:K.tx,fontWeight:600,marginBottom:14,lineHeight:1.4}}>{question}</p>
+        <textarea value={interviewAnswer} onChange={e=>sInterviewAnswer(e.target.value.slice(0,250))} placeholder="Sua resposta (até 250 caracteres)..." maxLength={250} rows={3} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
+        <div style={{fontSize:10,color:K.txD,marginTop:6}}>{interviewAnswer.length}/250</div>
+        <BT onClick={submit} disabled={!interviewAnswer.trim()||generatingNews} style={{marginTop:14}}>{generatingNews?"GERANDO NOTÍCIA...":"PUBLICAR RESPOSTA"}</BT>
       </G>;
     })()}
-    {/* Feed de mini-notícias — todos veem */}
+    {/* Feed de mini-notícias — Plantão com avatar do veículo */}
     {(S.athleteNews||[]).length>0&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📰 PLANTÃO<div style={{flex:1,height:1,background:"#0EA5E915"}}/></div>
-      <div style={{display:"grid",gap:10}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📰 PLANTÃO<div style={{flex:1,height:1,background:"#0EA5E915"}}/></div>
+      <div style={{display:"grid",gap:12}}>
         {[...(S.athleteNews||[])].sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt))).map(n=>(
-          <G key={n.id} style={{padding:14,borderLeft:`3px solid ${n.outletColor||K.gold}`}}>
-            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-              <span style={{fontSize:10,fontWeight:700,color:n.outletColor||K.gold,fontFamily:fC}}>{n.outletName}</span>
-              {n.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(n.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+          <G key={n.id} style={{padding:14,borderLeft:`4px solid ${n.outletColor||K.gold}`,display:"flex",gap:12,alignItems:"flex-start"}}>
+            <div style={{width:36,height:36,borderRadius:10,background:(n.outletColor||K.gold)+"25",border:`1px solid ${(n.outletColor||K.gold)}40`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:fH,fontSize:14,fontWeight:700,color:n.outletColor||K.gold,flexShrink:0}}>{(n.outletName||"N")[0]}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+                <span style={{fontSize:10,fontWeight:700,color:n.outletColor||K.gold,fontFamily:fC}}>{n.outletName}</span>
+                {n.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(n.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+              </div>
+              <div style={{fontFamily:fH,fontSize:14,fontWeight:700,color:K.tx,marginBottom:6}}>{n.headline}</div>
+              <p style={{fontSize:12,color:K.txD,lineHeight:1.5}}>{n.body}</p>
             </div>
-            <div style={{fontFamily:fH,fontSize:14,fontWeight:700,color:K.tx,marginBottom:6}}>{n.headline}</div>
-            <p style={{fontSize:12,color:K.txD,lineHeight:1.5}}>{n.body}</p>
           </G>
         ))}
       </div>
@@ -734,37 +821,39 @@ Responda APENAS com essas duas linhas, sem título extra.`;
         </div>
       </G>
     </div>
-    {/* Stats row */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:16}}>
-      {[{l:"TIMES",v:tm.length,c:K.accL},{l:"ATLETAS",v:pl.length,c:K.gold},{l:"JOGOS",v:played.length,c:K.grn},{l:"GOLS",v:allG.length,c:"#A855F7"}].map((s,i)=>
-        <G key={i} style={{padding:"12px 8px",textAlign:"center"}}><div style={{fontFamily:fH,fontSize:24,fontWeight:700,color:s.c,lineHeight:1}}>{s.v}</div><div style={{fontFamily:fC,fontSize:9,color:K.txD,marginTop:3,letterSpacing:"0.08em"}}>{s.l}</div></G>
+    {/* Stats row — mini dashboard com ícone por stat */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      {[{l:"TIMES",v:tm.length,c:K.accL,icon:"🛡️"},{l:"ATLETAS",v:pl.length,c:K.gold,icon:"👥"},{l:"JOGOS",v:played.length,c:K.grn,icon:"🏟️"},{l:"GOLS",v:allG.length,c:"#A855F7",icon:"⚽"}].map((s,i)=>
+        <G key={i} style={{padding:"14px 10px",textAlign:"center"}}><span style={{fontSize:18,display:"block",marginBottom:4}}>{s.icon}</span><div style={{fontFamily:fH,fontSize:26,fontWeight:700,color:s.c,lineHeight:1}}>{s.v}</div><div style={{fontFamily:fC,fontSize:9,color:K.txD,marginTop:4,letterSpacing:"0.08em"}}>{s.l}</div></G>
       )}
     </div>
     {/* Broadcasters */}
     <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>{BROADCASTERS.map(b=><span key={b.id} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:7,background:b.color+"0D",border:`1px solid ${b.color}15`,fontSize:11,fontWeight:700,fontFamily:fC,color:b.color}}>{b.icon} {b.name}</span>)}</div>
     </div>
 
-    {!hasTournament?<div style={{marginBottom:20,overflow:"hidden",borderRadius:16,border:`2px solid ${K.gold}30`,boxShadow:`0 8px 24px ${K.gold}15`,background:`linear-gradient(180deg,${K.acc}08 0%,${K.gold}06 50%,${K.acc}08 100%)`}}>
-      <div style={{height:4,background:`linear-gradient(90deg,${K.acc},${K.gold},${K.acc})`}}/>
-      <div style={{padding:"28px 20px",textAlign:"center"}}>
-        <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.gold,letterSpacing:"0.2em",marginBottom:8}}>AQUECIMENTO</div>
-        <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gold,letterSpacing:"0.12em",marginBottom:6}}>{daysUntilStart>0?`DIA -${daysUntilStart}`:"É HOJE!"}</div>
-        <span style={{fontSize:36,display:"block",marginBottom:10}}>🏆</span>
-        <p style={{fontFamily:fH,fontSize:22,fontWeight:700,color:K.tx,marginBottom:6}}>{daysUntilStart>0?`Faltam ${daysUntilStart} dia${daysUntilStart!==1?"s":""}`:"O torneio começa hoje!"}</p>
-        <p style={{fontSize:12,color:K.txD,marginBottom:18}}>O torneio começa em {startDateFormatted}</p>
-        <p style={{fontSize:13,fontWeight:700,color:K.gold,marginBottom:18}}>📅 Lembrem-se: o campeonato é dia {reminderDateStr}!</p>
-        <div style={{padding:"12px 18px",borderRadius:12,background:K.acc+"15",border:`1px solid ${K.acc}30`,display:"inline-block",marginBottom:16}}>
-          <span style={{fontFamily:fH,fontSize:24,fontWeight:700,color:K.accL}}>{pl.length}</span>
-          <span style={{fontSize:12,color:K.txD,marginLeft:8}}>atleta{pl.length!==1?"s":""} já garantido{pl.length!==1?"s":""}</span>
+    {!hasTournament?<div style={{marginBottom:20,overflow:"hidden",borderRadius:18,border:`2px solid ${K.gold}40`,boxShadow:`0 8px 32px ${K.gold}20`,background:`linear-gradient(180deg,${K.acc}0C 0%,${K.gold}08 50%,${K.acc}0C 100%)`}}>
+      <div style={{height:5,background:`linear-gradient(90deg,${K.acc},${K.gold},${K.acc})`}}/>
+      <div style={{padding:"32px 20px",textAlign:"center"}}>
+        <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.gold,letterSpacing:"0.2em",marginBottom:10}}>AQUECIMENTO</div>
+        <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gold,letterSpacing:"0.12em",marginBottom:8}}>{daysUntilStart>0?`DIA -${daysUntilStart}`:"É HOJE!"}</div>
+        <span style={{fontSize:40,display:"block",marginBottom:12}}>🏆</span>
+        <p style={{fontFamily:fH,fontSize:daysUntilStart>0?32:26,fontWeight:700,color:K.tx,marginBottom:8,lineHeight:1.2}}>{daysUntilStart>0?`Faltam ${daysUntilStart} dia${daysUntilStart!==1?"s":""}`:"O torneio começa hoje!"}</p>
+        <p style={{fontSize:12,color:K.txD,marginBottom:20}}>O torneio começa em {startDateFormatted}</p>
+        <p style={{fontSize:13,fontWeight:700,color:K.gold,marginBottom:20}}>📅 Lembrem-se: o campeonato é dia {reminderDateStr}!</p>
+        <div style={{padding:"14px 22px",borderRadius:14,background:`linear-gradient(135deg,${K.acc}20,${K.gold}15)`,border:`1px solid ${K.acc}40`,display:"inline-block",marginBottom:18}}>
+          <span style={{fontFamily:fH,fontSize:28,fontWeight:700,color:K.accL}}>{pl.length}</span>
+          <span style={{fontSize:12,color:K.txD,marginLeft:10}}>atleta{pl.length!==1?"s":""} já garantido{pl.length!==1?"s":""}</span>
         </div>
         <p style={{fontSize:12,color:K.txM,lineHeight:1.5,maxWidth:320,margin:"0 auto"}}>Aqueça a torcida! Convide os amigos, responda ao jornalista e acompanhe quem já está inscrito.</p>
       </div>
-      <div style={{height:4,background:`linear-gradient(90deg,${K.acc},${K.gold},${K.acc})`}}/>
+      <div style={{height:5,background:`linear-gradient(90deg,${K.acc},${K.gold},${K.acc})`}}/>
     </div>:<>
-      {/* CLASSIFICAÇÃO */}
+      {/* CLASSIFICAÇÃO — seção colapsável */}
       {st.length>0&&<div style={{marginBottom:16}}>
-        <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📊 CLASSIFICAÇÃO<div style={{flex:1,height:1,background:"#F9761612"}}/></div>
-        <G style={{padding:0,overflow:"hidden",overflowX:"auto"}}>
+        <button type="button" onClick={()=>sCollapseClassificacao(!collapseClassificacao)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,marginBottom:8,background:"none",border:"none",cursor:"pointer",padding:0,textAlign:"left"}}>
+          <span style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em"}}>📊 CLASSIFICAÇÃO</span><div style={{flex:1,height:1,background:"#F9761612"}}/><span style={{fontSize:14,color:K.txD}}>{collapseClassificacao?"▶":"▼"}</span>
+        </button>
+        {!collapseClassificacao&&<G style={{padding:0,overflow:"hidden",overflowX:"auto"}}>
           <div style={{display:"grid",gridTemplateColumns:"28px 1fr 26px 26px 26px 26px 26px 26px 28px 38px",padding:"8px 10px",background:K.tblH,fontSize:8,fontWeight:800,color:K.txM,fontFamily:fC,letterSpacing:"0.04em",minWidth:400}}>
             <div>#</div><div>TIME</div>{["J","V","E","D","GP","GC","SG","PTS"].map(h=><div key={h} style={{textAlign:"center"}}>{h}</div>)}
           </div>
@@ -781,12 +870,14 @@ Responda APENAS com essas duas linhas, sem título extra.`;
             <div style={{textAlign:"center",fontFamily:fH,fontSize:14,fontWeight:700,color:i===0?K.gold:K.tx}}>{s.pts}</div>
           </div>)}
         </G>
-      </div>}
+        }</div>}
 
-      {/* PRÓXIMAS PARTIDAS */}
+      {/* PRÓXIMAS PARTIDAS — seção colapsável */}
       {upcoming.length>0&&<div style={{marginBottom:16}}>
-        <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.grn,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📅 PRÓXIMAS PARTIDAS ({upcoming.length})<div style={{flex:1,height:1,background:K.grn+"12"}}/></div>
-        <div style={{display:"grid",gap:6}}>{upcoming.slice(0,6).map(m=>{const h=gt(m.homeTeamId),a=gt(m.awayTeamId);if(!h||!a)return null;
+        <button type="button" onClick={()=>sCollapseProximas(!collapseProximas)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,marginBottom:8,background:"none",border:"none",cursor:"pointer",padding:0,textAlign:"left"}}>
+          <span style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.grn,letterSpacing:"0.08em"}}>📅 PRÓXIMAS PARTIDAS ({upcoming.length})</span><div style={{flex:1,height:1,background:K.grn+"12"}}/><span style={{fontSize:14,color:K.txD}}>{collapseProximas?"▶":"▼"}</span>
+        </button>
+        {!collapseProximas&&<div style={{display:"grid",gap:6}}>{upcoming.slice(0,6).map(m=>{const h=gt(m.homeTeamId),a=gt(m.awayTeamId);if(!h||!a)return null;
           const hasBet=loggedPlayer&&(S.bets[m.id]||[]).some(b=>b.playerId===loggedPlayer.id);
           const gk=S.geminiKey;
           const genHype=async()=>{if(!gk||m.hypeText)return;sLoadingHypeId(m.id);const prompt=`Próxima partida do Futsabão (futebol de sabão): ${h.name} vs ${a.name}. Gere 1 ou 2 frases de prévia ÉPICA, PROVOCATIVA e ZUEIRA. Pode inventar bastidores ("Clima TENSO no vestiário do ${h.name}"), criar rivalidades absurdas, profecias malucas ("Fonte revela que ${a.name} treinou em sabão artesanal"). Tom: narrador empolgado + fofoqueiro esportivo. Zueira total, fake news engraçada liberada. Responda APENAS o texto, sem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,hypeText:text.slice(0,250)}:x)});sLoadingHypeId(null);};
@@ -802,12 +893,14 @@ Responda APENAS com essas duas linhas, sem título extra.`;
             </div>}
           </G>;
         })}{upcoming.length>6&&<p style={{fontSize:10,color:K.txD,textAlign:"center",marginTop:4}}>+{upcoming.length-6} partida{upcoming.length-6>1?"s":""}</p>}</div>
-      </div>}
+        }</div>}
 
-      {/* ÚLTIMOS RESULTADOS */}
+      {/* ÚLTIMOS RESULTADOS — seção colapsável */}
       {lastResults.length>0&&<div style={{marginBottom:16}}>
-        <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.blu,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🏁 ÚLTIMOS RESULTADOS<div style={{flex:1,height:1,background:K.blu+"12"}}/></div>
-        <div style={{display:"grid",gap:6}}>{lastResults.map(m=>{const h=gt(m.homeTeamId),a=gt(m.awayTeamId);if(!h||!a)return null;
+        <button type="button" onClick={()=>sCollapseResultados(!collapseResultados)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,marginBottom:8,background:"none",border:"none",cursor:"pointer",padding:0,textAlign:"left"}}>
+          <span style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.blu,letterSpacing:"0.08em"}}>🏁 ÚLTIMOS RESULTADOS</span><div style={{flex:1,height:1,background:K.blu+"12"}}/><span style={{fontSize:14,color:K.txD}}>{collapseResultados?"▶":"▼"}</span>
+        </button>
+        {!collapseResultados&&<div style={{display:"grid",gap:6}}>{lastResults.map(m=>{const h=gt(m.homeTeamId),a=gt(m.awayTeamId);if(!h||!a)return null;
           const ko=m.phase==="knockout",tied=m.homeScore===m.awayScore;
           const mVotes=S.votes[m.id]||[];const mTally={};mVotes.forEach(v=>{mTally[v.mvpId]=(mTally[v.mvpId]||0)+1;});
           const mvpEntry=Object.entries(mTally).sort((a,b)=>b[1]-a[1])[0];const mvpPlayer=mvpEntry?pl.find(p=>p.id===mvpEntry[0]):null;
@@ -847,7 +940,7 @@ Responda APENAS com essas duas linhas, sem título extra.`;
             </div>;})()}
           </G>;
         })}</div>
-      </div>}
+        }</div>}
 
       {/* 👑 MVPs DO CAMPEONATO — Ranking global */}
       {(()=>{
@@ -858,17 +951,17 @@ Responda APENAS com essas duas linhas, sem título extra.`;
         return <div style={{marginBottom:16}}>
           <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>👑 MVPs DO CAMPEONATO<div style={{flex:1,height:1,background:K.gold+"12"}}/></div>
           <G style={{padding:0,overflow:"hidden"}}>
-            {gmArr.map((r,i)=><div key={r.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?K.gold+"06":"transparent"}}>
-              <div style={{fontFamily:fH,fontWeight:700,fontSize:14,width:24,textAlign:"center",color:i===0?K.gold:i<3?"#94A3B8":K.txM}}>{i===0?"👑":i===1?"🥈":i===2?"🥉":`${i+1}º`}</div>
-              <div style={{width:32,height:32,borderRadius:8,overflow:"hidden",background:(r.team?.color.bg||K.txM)+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${i===0?K.gold+"30":K.bd}`,flexShrink:0}}>
-                {r.player.photo?<img src={r.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:12,color:r.team?.color.bg||K.txD}}>{(r.player.nickname||r.player.name)[0]}</span>}
+            {gmArr.map((r,i)=><div key={r.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:i===0?"14px 16px":"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?K.gold+"12":"transparent",borderRadius:i===0?10:0}}>
+              <div style={{fontFamily:fH,fontWeight:700,fontSize:i===0?18:14,width:i===0?28:24,textAlign:"center",color:i===0?K.gold:i<3?"#94A3B8":K.txM}}>{i===0?"👑":i===1?"🥈":i===2?"🥉":`${i+1}º`}</div>
+              <div style={{width:i===0?36:32,height:i===0?36:32,borderRadius:8,overflow:"hidden",background:(r.team?.color.bg||K.txM)+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${i===0?K.gold+"40":K.bd}`,flexShrink:0}}>
+                {r.player.photo?<img src={r.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:i===0?14:12,color:r.team?.color.bg||K.txD}}>{(r.player.nickname||r.player.name)[0]}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:12}}>{r.player.nickname||r.player.name}</div>
+                <div style={{fontWeight:700,fontSize:i===0?13:12}}>{r.player.nickname||r.player.name}</div>
                 {r.team&&<div style={{fontSize:10,color:r.team.color.bg,display:"flex",alignItems:"center",gap:3}}><Badge team={r.team} size={11}/>{r.team.name}</div>}
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{fontFamily:fH,fontWeight:700,fontSize:16,color:i===0?K.gold:K.tx}}>🏆 {r.wins}×</div>
+                <div style={{fontFamily:fH,fontWeight:700,fontSize:i===0?18:16,color:i===0?K.gold:K.tx}}>🏆 {r.wins}×</div>
                 <div style={{fontSize:9,color:K.txD}}>MVP</div>
               </div>
             </div>)}
@@ -885,17 +978,17 @@ Responda APENAS com essas duas linhas, sem título extra.`;
         return <div style={{marginBottom:16}}>
           <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#E74C3C",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🤦 PANJANGOS DO CAMPEONATO<div style={{flex:1,height:1,background:"#E74C3C12"}}/></div>
           <G style={{padding:0,overflow:"hidden"}}>
-            {gpArr.map((r,i)=><div key={r.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?"#E74C3C06":"transparent"}}>
-              <div style={{fontFamily:fH,fontWeight:700,fontSize:14,width:24,textAlign:"center",color:i===0?"#E74C3C":i<3?"#94A3B8":K.txM}}>{i===0?"🤦":i===1?"2º":i===2?"3º":`${i+1}º`}</div>
-              <div style={{width:32,height:32,borderRadius:8,overflow:"hidden",background:(r.team?.color.bg||K.txM)+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${i===0?"#E74C3C30":K.bd}`,flexShrink:0}}>
-                {r.player.photo?<img src={r.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:12,color:r.team?.color.bg||K.txD}}>{(r.player.nickname||r.player.name)[0]}</span>}
+            {gpArr.map((r,i)=><div key={r.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:i===0?"14px 16px":"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?"#E74C3C12":"transparent",borderRadius:i===0?10:0}}>
+              <div style={{fontFamily:fH,fontWeight:700,fontSize:i===0?18:14,width:i===0?28:24,textAlign:"center",color:i===0?"#E74C3C":i<3?"#94A3B8":K.txM}}>{i===0?"🤦":i===1?"2º":i===2?"3º":`${i+1}º`}</div>
+              <div style={{width:i===0?36:32,height:i===0?36:32,borderRadius:8,overflow:"hidden",background:(r.team?.color.bg||K.txM)+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${i===0?"#E74C3C40":K.bd}`,flexShrink:0}}>
+                {r.player.photo?<img src={r.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:i===0?14:12,color:r.team?.color.bg||K.txD}}>{(r.player.nickname||r.player.name)[0]}</span>}
               </div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:12}}>{r.player.nickname||r.player.name}</div>
+                <div style={{fontWeight:700,fontSize:i===0?13:12}}>{r.player.nickname||r.player.name}</div>
                 {r.team&&<div style={{fontSize:10,color:r.team.color.bg,display:"flex",alignItems:"center",gap:3}}><Badge team={r.team} size={11}/>{r.team.name}</div>}
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{fontFamily:fH,fontWeight:700,fontSize:16,color:i===0?"#E74C3C":K.tx}}>🤦 {r.wins}×</div>
+                <div style={{fontFamily:fH,fontWeight:700,fontSize:i===0?18:16,color:i===0?"#E74C3C":K.tx}}>🤦 {r.wins}×</div>
                 <div style={{fontSize:9,color:K.txD}}>Panjango</div>
               </div>
             </div>)}
@@ -907,11 +1000,11 @@ Responda APENAS com essas duas linhas, sem título extra.`;
       {sc.length>0&&<div style={{marginBottom:16}}>
         <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#A855F7",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>⚽ ARTILHARIA<div style={{flex:1,height:1,background:"#A855F712"}}/></div>
         <G style={{padding:0,overflow:"hidden"}}>
-          {sc.map((s,i)=><div key={s.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?K.gold+"04":"transparent"}}>
-            <div style={{fontFamily:fH,fontWeight:700,fontSize:14,width:24,textAlign:"center",color:i===0?K.gold:i<3?"#94A3B8":K.txM}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`}</div>
-            <div style={{width:32,height:32,borderRadius:8,overflow:"hidden",background:s.team.color.bg+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${K.bd}`,flexShrink:0}}>{s.player.photo?<img src={s.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:12,color:s.team.color.bg}}>{(s.player.nickname||s.player.name)[0]}</span>}</div>
-            <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:12}}>{s.player.nickname||s.player.name}</div><div style={{fontSize:10,color:s.team.color.bg,display:"flex",alignItems:"center",gap:3}}><Badge team={s.team} size={11}/>{s.team.name}</div></div>
-            <div style={{fontFamily:fH,fontWeight:700,fontSize:18,color:i===0?K.gold:K.grn}}>⚽ {s.goals}</div>
+          {sc.map((s,i)=><div key={s.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:i===0?"14px 16px":"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?K.gold+"10":"transparent",borderRadius:i===0?10:0}}>
+            <div style={{fontFamily:fH,fontWeight:700,fontSize:i===0?18:14,width:i===0?28:24,textAlign:"center",color:i===0?K.gold:i<3?"#94A3B8":K.txM}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`}</div>
+            <div style={{width:i===0?36:32,height:i===0?36:32,borderRadius:8,overflow:"hidden",background:s.team.color.bg+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${i===0?K.gold+"40":K.bd}`,flexShrink:0}}>{s.player.photo?<img src={s.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:i===0?14:12,color:s.team.color.bg}}>{(s.player.nickname||s.player.name)[0]}</span>}</div>
+            <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:i===0?13:12}}>{s.player.nickname||s.player.name}</div><div style={{fontSize:10,color:s.team.color.bg,display:"flex",alignItems:"center",gap:3}}><Badge team={s.team} size={11}/>{s.team.name}</div></div>
+            <div style={{fontFamily:fH,fontWeight:700,fontSize:i===0?22:18,color:i===0?K.gold:K.grn}}>⚽ {s.goals}</div>
           </div>)}
         </G>
       </div>}
@@ -959,6 +1052,7 @@ function Moderation({S,up,go}){
   const[delChat,sDelChat]=useState(null);
   const[delPresident,sDelPresident]=useState(false);
   const[delReferee,sDelReferee]=useState(false);
+  const[delFeedId,sDelFeedId]=useState(null);
   const gt=id=>S.teams.find(t=>t.id===id);
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="MODERAÇÃO"/>
@@ -1015,6 +1109,19 @@ function Moderation({S,up,go}){
         ))}
       </div>}
     </div>
+    {/* Feed pré-torneio (Ao vivo) */}
+    <div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.gold,letterSpacing:"0.06em",marginBottom:8}}>📡 FEED PRÉ-TORNEIO — AO VIVO</div>
+      {(S.preTorneioFeed||[]).length===0?<p style={{fontSize:12,color:K.txD}}>Nenhum post no feed.</p>:<div style={{display:"grid",gap:8}}>
+        {[...(S.preTorneioFeed||[])].sort((a,b)=>(new Date(b.createdAt||0))-(new Date(a.createdAt||0))).slice(0,20).map(item=>(
+          <G key={item.id} style={{padding:12,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+            <div><div style={{fontSize:10,fontWeight:700,color:K.txD,marginBottom:4}}>{item.authorLabel}{item.createdAt?" · "+new Date(item.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</div><p style={{fontSize:12,color:K.tx,fontStyle:"italic"}}>"{item.text}"</p></div>
+            <BT onClick={()=>sDelFeedId(item.id)} v="red" style={{padding:"5px 10px",fontSize:10}}>EXCLUIR</BT>
+          </G>
+        ))}
+        {(S.preTorneioFeed||[]).length>20&&<p style={{fontSize:10,color:K.txD}}>Mostrando os 20 mais recentes.</p>}
+      </div>}
+    </div>
     {/* Chat da torcida */}
     <div style={{marginBottom:16}}>
       <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#8B5CF6",letterSpacing:"0.06em",marginBottom:8}}>💬 CHAT DA TORCIDA</div>
@@ -1040,6 +1147,7 @@ function Moderation({S,up,go}){
     <ConfirmDialog open={delPresident} onCancel={()=>sDelPresident(false)} onConfirm={()=>{up({presidentMessage:null});sDelPresident(false);}} title="Excluir recado do Presidente?" message="O recado do Presidente será removido." confirmLabel="EXCLUIR" icon="🎩"/>
     <ConfirmDialog open={delReferee} onCancel={()=>sDelReferee(false)} onConfirm={()=>{up({refereeMessage:null});sDelReferee(false);}} title="Excluir recado do Árbitro?" message="O recado do Árbitro será removido." confirmLabel="EXCLUIR" icon="⚖️"/>
     <ConfirmDialog open={!!delNewsId} onCancel={()=>sDelNewsId(null)} onConfirm={()=>{up({athleteNews:(S.athleteNews||[]).filter(n=>n.id!==delNewsId)});sDelNewsId(null);}} title="Excluir notícia?" message="Esta notícia do Plantão será removida." confirmLabel="EXCLUIR" icon="📰"/>
+    <ConfirmDialog open={!!delFeedId} onCancel={()=>sDelFeedId(null)} onConfirm={()=>{up({preTorneioFeed:(S.preTorneioFeed||[]).filter(p=>p.id!==delFeedId)});sDelFeedId(null);}} title="Excluir post do feed?" message="Este post do feed pré-torneio será removido." confirmLabel="EXCLUIR" icon="📡"/>
     <ConfirmDialog open={!!delChat} onCancel={()=>sDelChat(null)} onConfirm={()=>{if(!delChat)return;const next={...S.fanChat,[delChat.chatKey]:(S.fanChat[delChat.chatKey]||[]).filter(m=>m.id!==delChat.msgId)};up({fanChat:next});sDelChat(null);}} title="Excluir mensagem do chat?" message="Esta mensagem da torcida será removida." confirmLabel="EXCLUIR" icon="💬"/>
   </div>;
 }
