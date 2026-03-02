@@ -420,6 +420,7 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer}){
 
 /* ══════════ ATHLETE DASHBOARD (TOURNAMENT HOME) ══════════ */
 function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
+  const hasTournament=(S.matches||[]).length>0;
   const[justRegistered,sJustRegistered]=useState(()=>{try{const v=sessionStorage.getItem("futsabao_just_registered");if(v){sessionStorage.removeItem("futsabao_just_registered");return true;}return false;}catch(e){return false;}});
   const[goalNotif,sGoalNotif]=useState(null);
   const[hasSubmittedInterview,sHasSubmittedInterview]=useState(false);
@@ -585,7 +586,6 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
   const sc=Object.entries(sMap).map(([pid,d])=>({player:pl.find(p=>p.id===pid),team:tm.find(t=>t.id===d.teamId),goals:d.goals})).filter(s=>s.player&&s.team).sort((a,b)=>b.goals-a.goals).slice(0,5);
   // Last results
   const lastResults=played.slice(-6).reverse();
-  const hasTournament=mt.length>0;
   // Pré-torneio: data alvo e countdown
   const tournamentTargetDate=S.tournamentStartAt?new Date(S.tournamentStartAt):new Date(2026,2,7);
   const nowPre=new Date();
