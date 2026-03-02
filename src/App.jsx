@@ -42,7 +42,7 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
-const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null};
+const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{}};
 
 // Cloud save — debounced, strips transient fields. Returns { ok, error? } for UI feedback.
 const TRANSIENT_KEYS=["screen","currentMatch","viewPlayerId"];
@@ -298,7 +298,7 @@ export default function App(){
   // Auto-clear save error toast after 5s
   useEffect(()=>{if(!saveError)return;const t=setTimeout(()=>sSetSaveError(null),5000);return()=>clearTimeout(t);},[saveError]);
 
-  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação"};
+  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
   const go=useCallback((s,x={})=>{
     sS(p=>({...p,screen:s,...x}));
     try{const title=SCREEN_NAMES[s]||s;window.history.pushState({screen:s},"",`#${s}`);document.title=`Futsabão — ${title}`;}catch(e){}
@@ -330,7 +330,7 @@ export default function App(){
 
   if(!role)return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>{!supabase&&<div role="status" style={{padding:"10px 14px",marginTop:12,marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}<LoginScreen onRole={sRole} light={light} toggleTheme={toggleTheme} S={S} sLoggedPlayer={sLoggedPlayer}/></div></div>;
   const athleteScreens={home:()=><AthleteDashboard {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
-  const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation};
+  const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation,recados:Recados};
   const SC=role==="admin"?adminScreens:athleteScreens;
   const C=SC[S.screen]||(role==="admin"?Home:()=><AthleteDashboard {...props}/>);
   return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>
@@ -447,15 +447,22 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
     const commentatorsList=(S.commentators||[]).map(c=>`${c.name} (${c.type==="narrator"?"narrador":"comentarista"})`).slice(0,10).join("; ")||"Galvão Bueno (narrador), Neto (comentarista)";
     const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
     const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
-    const prompt=`Você é um editor de portal esportivo. Gere uma manchete do dia para o Futsabão (campeonato de futebol de sabão).
+    const prompt=`Você é um editor SENSACIONALISTA e ZUEIRO de portal esportivo de fofoca. Gere a manchete do dia para o Futsabão (campeonato de futebol de sabão).
 Contexto: Hoje é ${todayFormatted}. O torneio será em ${tournamentDateStr}.
-Use estes dados na manchete ou no corpo: jogadores (${playerNames}), estádio ${STADIUM.name} (${STADIUM.location}), árbitro ${REFEREE.name}${sponsorNames!=="patrocinadores"?`, patrocinadores: ${sponsorNames}`:""}.
+Jogadores: ${playerNames}. Estádio: ${STADIUM.name} (${STADIUM.location}). Árbitro: ${REFEREE.name}${sponsorNames!=="patrocinadores"?`. Patrocinadores: ${sponsorNames}`:""}.
 Comentaristas da transmissão: ${commentatorsList}.
 
+ESTILO OBRIGATÓRIO:
+- Pode e DEVE inventar fake news absurdas e engraçadas envolvendo os jogadores pelo nome (ex: "Fulano flagrado treinando com sabão importado da Suíça").
+- Pode causar tumulto, criar rivalidades fictícias, inventar bastidores ("Fonte revela que...").
+- Sensacionalismo total, estilo mesa redonda com gritaria, manchete clickbait.
+- A disputa entre comentaristas deve ser ACALORADA: provocações, ironias pesadas, um zoando o outro.
+- Tudo no espírito de zoeira entre amigos. Vale tudo na zueira (sem preconceito/discriminação).
+
 Responda em EXATAMENTE 3 linhas, sem título extra:
-Linha 1: MANCHETE curta e impactante (máx 80 caracteres).
-Linha 2: CORPO em 1 a 3 frases (máx 200 caracteres).
-Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. Use dois nomes reais da lista acima. Formato: "[Nome 1] acha que... [Nome 2] discorda e acha que..." (máx 150 caracteres).`;
+Linha 1: MANCHETE curta, sensacionalista e impactante (máx 80 caracteres).
+Linha 2: CORPO em 1 a 3 frases com detalhes inventados e zueiros (máx 200 caracteres).
+Linha 3: DISPUTA: dois comentaristas discordam com provocação pesada. Use dois nomes reais da lista. Formato: "[Nome 1] dispara que... [Nome 2] rebate: ..." (máx 150 caracteres).`;
     callGemini(prompt,S.geminiKey).then(raw=>{
       let headline="Manchete do dia",body="",dispute="";
       if(raw){
@@ -475,7 +482,18 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
     const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
     const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
     const playerNames=(S.players||[]).map(p=>p.nickname||p.name).filter(Boolean).slice(0,5).join(", ")||"atletas";
-    const prompt=`Você é um dirigente de futebol caricato, das antigas, autoritário e folclórico (estilo Eurico Miranda). Está falando aos jogadores/atletas do Futsabão (campeonato de futebol de sabão). Hoje é ${todayFormatted}. O torneio será em ${tournamentDateStr}. Jogadores: ${playerNames}. Gere UMA única frase ou duas curtas (máx 150 caracteres), em primeira pessoa, como um recado do "cartola" ao elenco. Tom: autoritário, folclórico, pode falar em "meu clube", "meus atletas", "disciplina", "título". Responda APENAS o texto da fala, sem aspas nem título.`;
+    const prompt=`Você é um CARTOLA (dirigente de futebol) COMPLETAMENTE CARICATO, LOUCO e FOLCLÓRICO — estilo Eurico Miranda no auge. Está dando recado aos jogadores/atletas do Futsabão (campeonato de futebol de sabão). Hoje é ${todayFormatted}. O torneio será em ${tournamentDateStr}. Jogadores: ${playerNames}.
+
+ESTILO OBRIGATÓRIO:
+- Pode ameaçar multa, suspensão, demissão absurda ("Quem não treinar vai jogar de goleiro de costas").
+- Pode fazer promessas ABSURDAS ("Vou trazer o Messi pra jogar no sabão", "Contratei um olheiro da FIFA").
+- Pode dar bronca pesada citando jogadores pelo nome ("Cadê o ${playerNames.split(",")[0]||"fulano"}? Tá devendo!").
+- Pode causar polêmica com árbitro, adversários, patrocinadores.
+- Tom: autoritário, megalomaníaco, exagerado, com pitadas de loucura total.
+- Pode inventar fake news sobre si mesmo ("A CBF me ligou pedindo conselho").
+- Tudo no espírito de zueira entre amigos. Vale tudo na zoação.
+
+Gere UMA única frase ou duas curtas (máx 150 caracteres), em primeira pessoa. Responda APENAS o texto da fala, sem aspas nem título.`;
     callGemini(prompt,S.geminiKey).then(raw=>{
       const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,180)||"A diretoria está de olho. Disciplina e respeito ao mando.";
       up({cartolaMessage:{date:today,text}});
@@ -487,7 +505,19 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
     torcedorGeneratingRef.current=true;
     sGeneratingTorcedor(true);
     const playerNames=(S.players||[]).map(p=>p.nickname||p.name).filter(Boolean).slice(0,5).join(", ")||"a galera";
-    const prompt=`Você é um torcedor que corneta os atletas do Futsabão (campeonato de futebol de sabão). Zoação leve, provocação engraçada, sem ofensa. Fale para "a galera" ou para os jogadores (${playerNames}). Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Ex: "A torcida manda avisar...", "Vamos ver no jogo...", "Não adianta treino se no jogo...". Responda APENAS o texto da corneta, sem aspas nem título.`;
+    const prompt=`Você é o TORCEDOR MAIS CORNETEIRO do Futsabão (campeonato de futebol de sabão). Zueira PESADA de arquibancada, provocação de buteco, zoação de grupo de WhatsApp.
+
+Jogadores para cornetar: ${playerNames}.
+
+ESTILO OBRIGATÓRIO:
+- Corneta PESADA citando jogadores pelo nome/apelido ("${playerNames.split(",")[0]||"Fulano"}, vc joga mais no FIFA do que no sabão!").
+- Pode criar apelidos zueiros, inventar histórias engraçadas ("Vi o ${playerNames.split(",")[0]||"cara"} treinando com chinelo de dedo").
+- Pode fazer fake news sobre os jogadores ("Fulano visto dormindo no vestiário antes do treino").
+- Pode provocar times, questionar o árbitro, zoar o cartola.
+- Tom: corneta de arquibancada sem dó, provocação de pelada, zoeira máxima.
+- Tudo no espírito de zueira entre amigos. Vale tudo na zoação (sem preconceito/discriminação).
+
+Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS o texto da corneta, sem aspas nem título.`;
     callGemini(prompt,S.geminiKey).then(raw=>{
       const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,180)||"A torcida tá de olho. No jogo a gente vê quem é quem.";
       up({torcedorMessage:{date:today,text}});
@@ -511,6 +541,7 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
   const nowPre=new Date();
   const daysUntilStart=Math.max(0,Math.ceil((tournamentTargetDate-nowPre)/(24*60*60*1000)));
   const startDateFormatted=tournamentTargetDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
+  const reminderDateStr=tournamentTargetDate.toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
   return <div style={{paddingTop:10,paddingBottom:44}}>
     {/* Logo header */}
     <div style={{textAlign:"center",marginBottom:24}}>
@@ -600,6 +631,22 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
       </G>
     </div>}
     {generatingTorcedor&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando corneta do Torcedor...</span></G>}
+    {/* Palavra do Presidente */}
+    {(S.presidentMessage&&S.presidentMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#3B82F6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🎩 PALAVRA DO PRESIDENTE<div style={{flex:1,height:1,background:"#3B82F615"}}/></div>
+      <G style={{padding:16,borderLeft:"4px solid #3B82F6",background:"#3B82F608"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.presidentMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rafão — Presidente · {today}</div>
+      </G>
+    </div>}
+    {/* Palavra do Árbitro */}
+    {(S.refereeMessage&&S.refereeMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#14B8A6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>⚖️ PALAVRA DO ÁRBITRO<div style={{flex:1,height:1,background:"#14B8A615"}}/></div>
+      <G style={{padding:16,borderLeft:"4px solid #14B8A6",background:"#14B8A608"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.refereeMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rodolfo Seifert — Árbitro · {today}</div>
+      </G>
+    </div>}
     {/* Pergunta do jornalista — só para atleta logado que ainda não respondeu nesta visita */}
     {loggedPlayer&&!hasSubmittedInterview&&(()=>{
       const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
@@ -616,7 +663,20 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
         const gk=S.geminiKey;
         if(gk){
           sGeneratingNews(true);
-          const prompt=`Você é um editor do veículo "${outlet.name}". O jornalista ${journalist.name} fez a seguinte pergunta ao atleta ${playerName}: "${question}". A resposta do atleta foi: "${ans.slice(0,250)}". Gere uma mini-notícia em exatamente 2 linhas. Primeira linha: manchete curta (estilo portal esportivo, máx 60 caracteres). Segunda linha: texto da mini-notícia em 2 ou 3 frases no estilo do veículo e do jornalista. Responda APENAS com essas duas linhas, sem título extra.`;
+          const prompt=`Você é um editor SENSACIONALISTA e FOFOQUEIRO do veículo "${outlet.name}". O jornalista ${journalist.name} entrevistou o atleta ${playerName} no Futsabão (campeonato de futebol de sabão).
+Pergunta: "${question}". Resposta do atleta: "${ans.slice(0,250)}".
+
+ESTILO OBRIGATÓRIO:
+- Pode DISTORCER a resposta do atleta para criar polêmica (ex: se ele disse "tô bem", publicar "Atleta dá a entender que não confia nos companheiros").
+- Pode INVENTAR detalhes, exagerar absurdamente, criar manchete clickbait.
+- Pode sugerir que o atleta disse algo que não disse (fake news engraçada).
+- Tom: portal de fofoca esportiva, sensacionalismo puro, zueira máxima.
+- Tudo no espírito de zoeira entre amigos.
+
+Gere em exatamente 2 linhas:
+Primeira linha: manchete curta SENSACIONALISTA e clickbait (máx 60 caracteres).
+Segunda linha: texto da mini-notícia em 2 ou 3 frases com detalhes inventados e zueiros.
+Responda APENAS com essas duas linhas, sem título extra.`;
           const raw=await callGemini(prompt,gk);
           if(raw){
             const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean);
@@ -683,6 +743,7 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
       <span style={{fontSize:32,display:"block",marginBottom:8}}>🏆</span>
       <p style={{fontFamily:fH,fontSize:20,fontWeight:700,color:K.tx,marginBottom:4}}>{daysUntilStart>0?`Faltam ${daysUntilStart} dia${daysUntilStart!==1?"s":""}`:"O torneio começa hoje!"}</p>
       <p style={{fontSize:12,color:K.txD,marginBottom:16}}>O torneio começa em {startDateFormatted}</p>
+      <p style={{fontSize:13,fontWeight:700,color:K.gold,marginBottom:16}}>📅 Lembrem-se: o campeonato é dia {reminderDateStr}!</p>
       <div style={{padding:"10px 16px",borderRadius:10,background:K.acc+"12",border:`1px solid ${K.acc}25`,display:"inline-block",marginBottom:14}}>
         <span style={{fontFamily:fH,fontSize:22,fontWeight:700,color:K.accL}}>{pl.length}</span>
         <span style={{fontSize:12,color:K.txD,marginLeft:6}}>atleta{pl.length!==1?"s":""} já garantido{pl.length!==1?"s":""}</span>
@@ -717,7 +778,7 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
         <div style={{display:"grid",gap:6}}>{upcoming.slice(0,6).map(m=>{const h=gt(m.homeTeamId),a=gt(m.awayTeamId);if(!h||!a)return null;
           const hasBet=loggedPlayer&&(S.bets[m.id]||[]).some(b=>b.playerId===loggedPlayer.id);
           const gk=S.geminiKey;
-          const genHype=async()=>{if(!gk||m.hypeText)return;sLoadingHypeId(m.id);const prompt=`Próxima partida de futebol (Futsabão): ${h.name} vs ${a.name}. Gere 1 ou 2 frases de "hype" ou preview no estilo de narração de jogo grande (empolgação, expectativa). Responda APENAS o texto, sem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,hypeText:text.slice(0,250)}:x)});sLoadingHypeId(null);};
+          const genHype=async()=>{if(!gk||m.hypeText)return;sLoadingHypeId(m.id);const prompt=`Próxima partida do Futsabão (futebol de sabão): ${h.name} vs ${a.name}. Gere 1 ou 2 frases de prévia ÉPICA, PROVOCATIVA e ZUEIRA. Pode inventar bastidores ("Clima TENSO no vestiário do ${h.name}"), criar rivalidades absurdas, profecias malucas ("Fonte revela que ${a.name} treinou em sabão artesanal"). Tom: narrador empolgado + fofoqueiro esportivo. Zueira total, fake news engraçada liberada. Responda APENAS o texto, sem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,hypeText:text.slice(0,250)}:x)});sLoadingHypeId(null);};
           return <G key={m.id} hover={!!loggedPlayer} style={{padding:"10px 14px",cursor:loggedPlayer?"pointer":"default"}} onClick={()=>loggedPlayer&&go("bolao")}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <Badge team={h} size={22}/><span style={{fontFamily:fC,fontWeight:700,fontSize:12,flex:1,textAlign:"right"}}>{h.name}</span>
@@ -741,8 +802,8 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
           const mvpEntry=Object.entries(mTally).sort((a,b)=>b[1]-a[1])[0];const mvpPlayer=mvpEntry?pl.find(p=>p.id===mvpEntry[0]):null;
           const mvpTeam=mvpPlayer?tm.find(t=>t.playerIds?.includes(mvpPlayer.id)):null;
           const gk=S.geminiKey;
-          const genFlash=async()=>{if(!gk||m.postMatchFlash)return;sLoadingFlashId(m.id);const goals=(m.goals||[]).map(g=>{const p=pl.find(x=>x.id===g.playerId);return p?(p.nickname||p.name):"?";});const prompt=`Partida de futebol (Futsabão) encerrada: ${h.name} ${m.homeScore} × ${m.awayScore} ${a.name}.${goals.length?` Gols: ${goals.join(", ")}.`:""}${mvpPlayer?` MVP da partida: ${mvpPlayer.nickname||mvpPlayer.name}.`:""} Gere em 1 ou 2 frases um "flash" de narrador esportivo (tom emocionante, resumo do jogo). Responda APENAS com o texto do flash, sem aspas nem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,postMatchFlash:text.slice(0,300)}:x)});sLoadingFlashId(null);};
-          const genMvpQuote=async()=>{if(!gk||!mvpPlayer||m.mvpQuote)return;sLoadingMvpId(m.id);const prompt=`O jogador ${mvpPlayer.nickname||mvpPlayer.name} foi eleito MVP da partida ${h.name} ${m.homeScore} × ${m.awayScore} ${a.name}. Gere UMA frase curta como se fosse a reação dele no pós-jogo (ex: "Time entregou tudo!", "Não acredito!"). Tom natural, brasileiro. Responda APENAS a frase, entre aspas.`;const text=await callGemini(prompt,gk);const quote=text?(text.replace(/^["']|["']$/g,"").trim().slice(0,150)):null;if(quote)up({matches:mt.map(x=>x.id===m.id?{...x,mvpQuote:quote}:x)});sLoadingMvpId(null);};
+          const genFlash=async()=>{if(!gk||m.postMatchFlash)return;sLoadingFlashId(m.id);const goals=(m.goals||[]).map(g=>{const p=pl.find(x=>x.id===g.playerId);return p?(p.nickname||p.name):"?";});const prompt=`Partida do Futsabão (futebol de sabão) ENCERRADA: ${h.name} ${m.homeScore} × ${m.awayScore} ${a.name}.${goals.length?` Gols: ${goals.join(", ")}.`:""}${mvpPlayer?` MVP: ${mvpPlayer.nickname||mvpPlayer.name}.`:""} Gere 1 ou 2 frases de "flash" pós-jogo DRAMÁTICO e ZUEIRO. Pode exagerar lances ("Gol fantasma?!"), inventar polêmicas ("Árbitro consultou o VAR do sabão!"), criar narrativas absurdas, zoar o perdedor. Tom: narrador emocionado com sensacionalismo máximo e zueira de pelada. Responda APENAS o texto, sem aspas nem título.`;const text=await callGemini(prompt,gk);if(text)up({matches:mt.map(x=>x.id===m.id?{...x,postMatchFlash:text.slice(0,300)}:x)});sLoadingFlashId(null);};
+          const genMvpQuote=async()=>{if(!gk||!mvpPlayer||m.mvpQuote)return;sLoadingMvpId(m.id);const prompt=`O jogador ${mvpPlayer.nickname||mvpPlayer.name} foi eleito MVP da partida ${h.name} ${m.homeScore} × ${m.awayScore} ${a.name} no Futsabão (futebol de sabão). Gere UMA frase curta como se fosse a reação dele no pós-jogo. ESTILO: pode ser ARROGANTE ("Sou o melhor do sabão e vocês sabem"), ZOEIRO ("O sabão escorrega pra todo mundo menos pra mim"), PROVOCATIVO ("Fala pro ${h.name===a.name?"adversário":a.name} que eu mando abraço"), pode tirar sarro dos adversários, se autoproclamar craque. Tom: jogador zoeiro de pelada, cheio de si. Responda APENAS a frase, entre aspas.`;const text=await callGemini(prompt,gk);const quote=text?(text.replace(/^["']|["']$/g,"").trim().slice(0,150)):null;if(quote)up({matches:mt.map(x=>x.id===m.id?{...x,mvpQuote:quote}:x)});sLoadingMvpId(null);};
           return <G key={m.id} hover style={{padding:"10px 14px",cursor:"pointer"}} onClick={()=>{go("matchview",{currentMatch:m.id});}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <Badge team={h} size={22}/><span style={{fontFamily:fC,fontWeight:700,fontSize:12,flex:1,textAlign:"right"}}>{h.name}</span>
@@ -764,6 +825,15 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
               <span style={{fontSize:9,color:K.grn,fontFamily:fC}}>📸 Fotos</span>
             </div>}
             {mvpPlayer&&(m.mvpQuote?<p style={{fontSize:10,color:K.txD,fontStyle:"italic",marginTop:4}}>Reação: "{m.mvpQuote}"</p>:gk&&<button type="button" onClick={e=>{e.stopPropagation();genMvpQuote();}} disabled={!!loadingMvpId} style={{marginTop:4,background:"none",border:"none",color:K.gold,cursor:loadingMvpId?"default":"pointer",fontSize:10,fontFamily:fC}}>{loadingMvpId===m.id?"Gerando...":"Gerar reação do MVP"}</button>)}
+            {/* Panjango badge inline */}
+            {(()=>{const pjV=(S.panjangoVotes||{})[m.id]||[];if(!pjV.length)return null;const pjT={};pjV.forEach(v=>{pjT[v.panjangoId]=(pjT[v.panjangoId]||0)+1;});const pjE=Object.entries(pjT).sort((a,b)=>b[1]-a[1])[0];const pjP=pjE?pl.find(p=>p.id===pjE[0]):null;const pjTeam=pjP?tm.find(t=>t.playerIds?.includes(pjP.id)):null;if(!pjP)return null;return <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:4,padding:"4px 10px",borderRadius:8,background:"#E74C3C08",border:"1px solid #E74C3C10"}}>
+              <span style={{fontSize:10}}>🤦</span>
+              <div style={{width:18,height:18,borderRadius:5,overflow:"hidden",background:(pjTeam?.color.bg||K.txM)+"15",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {pjP.photo?<img src={pjP.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:7,fontWeight:800,color:pjTeam?.color.bg||"#E74C3C",fontFamily:fC}}>{(pjP.nickname||pjP.name)[0]}</span>}
+              </div>
+              <span style={{fontSize:10,fontWeight:700,color:"#E74C3C"}}>{pjP.nickname||pjP.name}</span>
+              <span style={{fontSize:9,color:K.txD}}>Panjango · {pjE[1]} voto{pjE[1]>1?"s":""}</span>
+            </div>;})()}
           </G>;
         })}</div>
       </div>}
@@ -789,6 +859,33 @@ Linha 3: DISPUTA: dois comentaristas da transmissão discordam sobre o torneio. 
               <div style={{textAlign:"right"}}>
                 <div style={{fontFamily:fH,fontWeight:700,fontSize:16,color:i===0?K.gold:K.tx}}>🏆 {r.wins}×</div>
                 <div style={{fontSize:9,color:K.txD}}>MVP</div>
+              </div>
+            </div>)}
+          </G>
+        </div>;
+      })()}
+
+      {/* 🤦 PANJANGOS DO CAMPEONATO — Ranking global */}
+      {(()=>{
+        const globalPj={};
+        played.forEach(m=>{const pjV=(S.panjangoVotes||{})[m.id]||[];const pjT={};pjV.forEach(v=>{pjT[v.panjangoId]=(pjT[v.panjangoId]||0)+1;});const best=Object.entries(pjT).sort((a,b)=>b[1]-a[1])[0];if(best){if(!globalPj[best[0]])globalPj[best[0]]={wins:0,totalVotes:0};globalPj[best[0]].wins++;globalPj[best[0]].totalVotes+=best[1];}});
+        const gpArr=Object.entries(globalPj).map(([pid,d])=>({player:pl.find(p=>p.id===pid),team:tm.find(t=>t.playerIds?.includes(pid)),...d})).filter(x=>x.player).sort((a,b)=>b.wins-a.wins||b.totalVotes-a.totalVotes);
+        if(!gpArr.length)return null;
+        return <div style={{marginBottom:16}}>
+          <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#E74C3C",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🤦 PANJANGOS DO CAMPEONATO<div style={{flex:1,height:1,background:"#E74C3C12"}}/></div>
+          <G style={{padding:0,overflow:"hidden"}}>
+            {gpArr.map((r,i)=><div key={r.player.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none",background:i===0?"#E74C3C06":"transparent"}}>
+              <div style={{fontFamily:fH,fontWeight:700,fontSize:14,width:24,textAlign:"center",color:i===0?"#E74C3C":i<3?"#94A3B8":K.txM}}>{i===0?"🤦":i===1?"2º":i===2?"3º":`${i+1}º`}</div>
+              <div style={{width:32,height:32,borderRadius:8,overflow:"hidden",background:(r.team?.color.bg||K.txM)+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${i===0?"#E74C3C30":K.bd}`,flexShrink:0}}>
+                {r.player.photo?<img src={r.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:800,fontSize:12,color:r.team?.color.bg||K.txD}}>{(r.player.nickname||r.player.name)[0]}</span>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:12}}>{r.player.nickname||r.player.name}</div>
+                {r.team&&<div style={{fontSize:10,color:r.team.color.bg,display:"flex",alignItems:"center",gap:3}}><Badge team={r.team} size={11}/>{r.team.name}</div>}
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontFamily:fH,fontWeight:700,fontSize:16,color:i===0?"#E74C3C":K.tx}}>🤦 {r.wins}×</div>
+                <div style={{fontSize:9,color:K.txD}}>Panjango</div>
               </div>
             </div>)}
           </G>
@@ -849,6 +946,8 @@ function Moderation({S,up,go}){
   const[delTorcedor,sDelTorcedor]=useState(false);
   const[delNewsId,sDelNewsId]=useState(null);
   const[delChat,sDelChat]=useState(null);
+  const[delPresident,sDelPresident]=useState(false);
+  const[delReferee,sDelReferee]=useState(false);
   const gt=id=>S.teams.find(t=>t.id===id);
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="MODERAÇÃO"/>
@@ -875,6 +974,22 @@ function Moderation({S,up,go}){
       <G style={{padding:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
         <div><p style={{fontSize:12,color:K.tx,fontStyle:"italic"}}>"{S.torcedorMessage.text}"</p><div style={{fontSize:10,color:K.txD,marginTop:4}}>{S.torcedorMessage.date}</div></div>
         <BT onClick={()=>sDelTorcedor(true)} v="red" style={{padding:"6px 12px",fontSize:11}}>EXCLUIR</BT>
+      </G>
+    </div>}
+    {/* Presidente */}
+    {S.presidentMessage&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#3B82F6",letterSpacing:"0.06em",marginBottom:6}}>🎩 PRESIDENTE</div>
+      <G style={{padding:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div><p style={{fontSize:12,color:K.tx,fontStyle:"italic"}}>"{S.presidentMessage.text}"</p><div style={{fontSize:10,color:K.txD,marginTop:4}}>{S.presidentMessage.date}</div></div>
+        <BT onClick={()=>sDelPresident(true)} v="red" style={{padding:"6px 12px",fontSize:11}}>EXCLUIR</BT>
+      </G>
+    </div>}
+    {/* Árbitro */}
+    {S.refereeMessage&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:"#14B8A6",letterSpacing:"0.06em",marginBottom:6}}>⚖️ ÁRBITRO</div>
+      <G style={{padding:14,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+        <div><p style={{fontSize:12,color:K.tx,fontStyle:"italic"}}>"{S.refereeMessage.text}"</p><div style={{fontSize:10,color:K.txD,marginTop:4}}>{S.refereeMessage.date}</div></div>
+        <BT onClick={()=>sDelReferee(true)} v="red" style={{padding:"6px 12px",fontSize:11}}>EXCLUIR</BT>
       </G>
     </div>}
     {/* Feed de atletas (Plantão) */}
@@ -911,8 +1026,51 @@ function Moderation({S,up,go}){
     <ConfirmDialog open={delHeadline} onCancel={()=>sDelHeadline(false)} onConfirm={()=>{up({dailyHeadline:null});sDelHeadline(false);}} title="Excluir manchete do dia?" message="A manchete do dia será removida. Amanhã uma nova pode ser gerada." confirmLabel="EXCLUIR" icon="📰"/>
     <ConfirmDialog open={delCartola} onCancel={()=>sDelCartola(false)} onConfirm={()=>{up({cartolaMessage:null});sDelCartola(false);}} title="Excluir mensagem do Cartola?" message="A fala do Cartola será removida." confirmLabel="EXCLUIR" icon="👔"/>
     <ConfirmDialog open={delTorcedor} onCancel={()=>sDelTorcedor(false)} onConfirm={()=>{up({torcedorMessage:null});sDelTorcedor(false);}} title="Excluir mensagem do Torcedor?" message="A corneta do Torcedor será removida." confirmLabel="EXCLUIR" icon="📢"/>
+    <ConfirmDialog open={delPresident} onCancel={()=>sDelPresident(false)} onConfirm={()=>{up({presidentMessage:null});sDelPresident(false);}} title="Excluir recado do Presidente?" message="O recado do Presidente será removido." confirmLabel="EXCLUIR" icon="🎩"/>
+    <ConfirmDialog open={delReferee} onCancel={()=>sDelReferee(false)} onConfirm={()=>{up({refereeMessage:null});sDelReferee(false);}} title="Excluir recado do Árbitro?" message="O recado do Árbitro será removido." confirmLabel="EXCLUIR" icon="⚖️"/>
     <ConfirmDialog open={!!delNewsId} onCancel={()=>sDelNewsId(null)} onConfirm={()=>{up({athleteNews:(S.athleteNews||[]).filter(n=>n.id!==delNewsId)});sDelNewsId(null);}} title="Excluir notícia?" message="Esta notícia do Plantão será removida." confirmLabel="EXCLUIR" icon="📰"/>
     <ConfirmDialog open={!!delChat} onCancel={()=>sDelChat(null)} onConfirm={()=>{if(!delChat)return;const next={...S.fanChat,[delChat.chatKey]:(S.fanChat[delChat.chatKey]||[]).filter(m=>m.id!==delChat.msgId)};up({fanChat:next});sDelChat(null);}} title="Excluir mensagem do chat?" message="Esta mensagem da torcida será removida." confirmLabel="EXCLUIR" icon="💬"/>
+  </div>;
+}
+
+/* ══════════ RECADOS (ADMIN) ══════════ */
+function Recados({S,up,go}){
+  const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
+  const[presTxt,sPresTxt]=useState("");
+  const[refTxt,sRefTxt]=useState("");
+  const sendPres=()=>{if(!presTxt.trim())return;up({presidentMessage:{date:today,text:presTxt.trim()}});sPresTxt("");};
+  const sendRef=()=>{if(!refTxt.trim())return;up({refereeMessage:{date:today,text:refTxt.trim()}});sRefTxt("");};
+  return <div style={{paddingTop:20,paddingBottom:40}}>
+    <BB onClick={()=>go("home")} crumb="RECADOS"/>
+    <SH icon="📣" title="RECADOS" sub="Envie recados do Presidente e do Árbitro aos atletas" color="#3B82F6"/>
+
+    {/* Palavra do Presidente */}
+    <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#3B82F6",letterSpacing:"0.08em",marginBottom:8,marginTop:8,display:"flex",alignItems:"center",gap:8}}>🎩 PALAVRA DO PRESIDENTE — RAFÃO<div style={{flex:1,height:1,background:"#3B82F615"}}/></div>
+    {S.presidentMessage&&<G style={{padding:14,marginBottom:10,borderLeft:"4px solid #3B82F6",background:"#3B82F608"}}>
+      <p style={{fontSize:13,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.presidentMessage.text}"</p>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8}}>
+        <span style={{fontSize:10,color:K.txD}}>{S.presidentMessage.date}</span>
+        <BT onClick={()=>up({presidentMessage:null})} v="red" style={{padding:"4px 10px",fontSize:10}}>LIMPAR</BT>
+      </div>
+    </G>}
+    <G style={{padding:16,marginBottom:20}}>
+      <textarea value={presTxt} onChange={e=>sPresTxt(e.target.value)} placeholder="Escreva o recado do Presidente Rafão…" rows={3} style={{width:"100%",padding:12,borderRadius:8,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
+      <BT onClick={sendPres} disabled={!presTxt.trim()} style={{marginTop:10,width:"100%"}}>ENVIAR RECADO DO PRESIDENTE</BT>
+    </G>
+
+    {/* Palavra do Árbitro */}
+    <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#14B8A6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>⚖️ PALAVRA DO ÁRBITRO — RODOLFO SEIFERT<div style={{flex:1,height:1,background:"#14B8A615"}}/></div>
+    {S.refereeMessage&&<G style={{padding:14,marginBottom:10,borderLeft:"4px solid #14B8A6",background:"#14B8A608"}}>
+      <p style={{fontSize:13,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.refereeMessage.text}"</p>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8}}>
+        <span style={{fontSize:10,color:K.txD}}>{S.refereeMessage.date}</span>
+        <BT onClick={()=>up({refereeMessage:null})} v="red" style={{padding:"4px 10px",fontSize:10}}>LIMPAR</BT>
+      </div>
+    </G>}
+    <G style={{padding:16,marginBottom:20}}>
+      <textarea value={refTxt} onChange={e=>sRefTxt(e.target.value)} placeholder="Escreva o recado do Árbitro Rodolfo Seifert…" rows={3} style={{width:"100%",padding:12,borderRadius:8,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
+      <BT onClick={sendRef} disabled={!refTxt.trim()} style={{marginTop:10,width:"100%"}}>ENVIAR RECADO DO ÁRBITRO</BT>
+    </G>
   </div>;
 }
 
@@ -949,6 +1107,7 @@ function Home({S,go,REFEREE,STADIUM,BROADCASTERS,exportData,importData}){
         {ic:"⚽",l:"ARTILHARIA",d:"Ranking de goleadores",s:"scorers",c:"#A855F7"},
         {ic:"🎙️",l:"TRANSMISSÃO",d:"Narradores, comentaristas, jornalistas e IA",s:"commentators",c:"#8B5CF6"},
         {ic:"📋",l:"SÚMULA",d:"Relatório oficial",s:"sumula",c:"#14B8A6"},
+        {ic:"📣",l:"RECADOS",d:"Palavra do Presidente e do Árbitro",s:"recados",c:"#3B82F6"},
         {ic:"🛡️",l:"MODERAÇÃO",d:"Excluir comentários e mensagens",s:"moderation",c:"#E74C3C"},
         {ic:"🏅",l:"PATROCINADORES",d:"Cadastro de patrocinadores",s:"sponsors",c:"#C4A561"},
       ].map((it,i)=>
@@ -1388,7 +1547,7 @@ function Match({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
     // Build player roster for context
     const roster=(team)=>{const pls=team.playerIds.map(pid=>pl.find(p=>p.id===pid)).filter(Boolean);return pls.map(p=>`${p.nickname||p.name}${p.number?" nº"+p.number:""}${p.position?" ("+p.position+")":""}`).join(", ");};
     const bcNames=crew.broadcasters.map(b=>b.name).join(" e ");
-    const prompt=`Você está numa transmissão AO VIVO de FUTEBOL DE SABÃO (futebol jogado em campo ensaboado, escorregadio, hilário e caótico).
+    const prompt=`Você está numa transmissão AO VIVO de FUTEBOL DE SABÃO (futebol jogado em campo ensaboado, escorregadio, hilário e caótico). A zueira é TOTAL.
 
 EMISSORA(S): ${bcNames}
 
@@ -1415,8 +1574,13 @@ REGRAS OBRIGATÓRIAS:
 - Cada pessoa fala UMA frase (máx 25 palavras), no seu estilo único
 - CITE NOMES dos jogadores pelo apelido ou número da camisa, cite o árbitro ${REFEREE.name} e a emissora ${bcNames}
 - ${trigger==="goal"?"TODOS reagem ao gol — o narrador GRITA, os comentaristas analisam/debatem":"Faça comentários sobre o que está acontecendo, cite jogadores específicos"}
-- Eles CONVERSAM entre si, concordam, discordam, provocam, interrompem
-- É futebol de SABÃO: escorregadio, caótico, jogadores caem, escorregam, é hilário
+- ZUEIRA MÁXIMA: os comentaristas BRIGAM entre si, discordam pesadamente, provocam, interrompem, zoam um ao outro
+- Podem INVENTAR histórias ao vivo sobre os jogadores ("Fonte me disse que...", "Eu soube nos bastidores que...")
+- Podem criar FAKE NEWS engraçadas ao vivo ("Me dizem que o ${ht.name} treinou com sabão artesanal da Bahia")
+- O narrador faz PIADAS com as quedas no sabão, escorregões, lances absurdos
+- É futebol de SABÃO: escorregadio, caótico, jogadores caem, escorregam, é hilário — EXPLOREM ISSO
+- Tom: mesa redonda caótica + narração empolgada de pelada + zoeira de grupo de WhatsApp
+- Tudo no espírito de zueira entre amigos. Vale tudo na zoação (sem preconceito/discriminação)
 - Responda APENAS no formato JSON: [{"name":"Nome","text":"fala"}]
 - NÃO inclua nada fora do JSON (sem markdown, sem explicação)`;
 
@@ -1620,9 +1784,10 @@ function Scorers({S,go}){
 
 /* ══════════ MATCH VIEW (Fan Chat + MVP Voting) ══════════ */
 function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
-  const{currentMatch:cm,matches:mt,teams:tm,players:pl,fanChat,votes}=S;
+  const{currentMatch:cm,matches:mt,teams:tm,players:pl,fanChat,votes,panjangoVotes:pjVotes}=S;
   const match=mt.find(m=>m.id===cm);const gt=id=>tm.find(t=>t.id===id);
   const[msg,sMsg]=useState("");const[tab,sTab]=useState("chat");const[mvpId,sMvpId]=useState("");const[voteDone,sVoteDone]=useState(false);
+  const[pjId,sPjId]=useState("");const[pjDone,sPjDone]=useState(false);
   if(!match)return <div style={{paddingTop:20}}><BB onClick={()=>go("home")}/><p style={{color:K.txD,textAlign:"center",marginTop:20}}>Partida não encontrada.</p></div>;
   const ht=gt(match.homeTeamId),at=gt(match.awayTeamId);
   const chatKey=match.id;const msgs=fanChat[chatKey]||[];
@@ -1634,6 +1799,11 @@ function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
   const tally={};matchVotes.forEach(v=>{tally[v.mvpId]=(tally[v.mvpId]||0)+1;});
   const mvpRank=Object.entries(tally).map(([pid,cnt])=>({player:pl.find(p=>p.id===pid),count:cnt})).filter(x=>x.player).sort((a,b)=>b.count-a.count);
   const allPlayers=[...((ht?.playerIds||[]).map(pid=>pl.find(p=>p.id===pid)).filter(Boolean)),...((at?.playerIds||[]).map(pid=>pl.find(p=>p.id===pid)).filter(Boolean))];
+  // Panjango voting
+  const matchPjVotes=(pjVotes||{})[match.id]||[];const hasPjVoted=loggedPlayer&&matchPjVotes.some(v=>v.voterId===loggedPlayer.id);
+  const doPjVote=()=>{if(!pjId||!loggedPlayer||hasPjVoted)return;const nv={id:uid(),voterId:loggedPlayer.id,panjangoId:pjId,voterName:loggedPlayer.name};up({panjangoVotes:{...(pjVotes||{}),[match.id]:[...matchPjVotes,nv]}});sPjDone(true);};
+  const pjTally={};matchPjVotes.forEach(v=>{pjTally[v.panjangoId]=(pjTally[v.panjangoId]||0)+1;});
+  const pjRank=Object.entries(pjTally).map(([pid,cnt])=>({player:pl.find(p=>p.id===pid),count:cnt})).filter(x=>x.player).sort((a,b)=>b.count-a.count);
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")}/>
     <G style={{marginTop:12,textAlign:"center",padding:"16px 14px",marginBottom:16}}>
@@ -1652,10 +1822,16 @@ function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
         <span style={{fontSize:11,fontWeight:700,color:K.gold}}>{mvpRank[0].player.nickname||mvpRank[0].player.name}</span>
         <span style={{fontSize:9,color:K.txD}}>MVP · {mvpRank[0].count} voto{mvpRank[0].count>1?"s":""}</span>
       </div>}
+      {/* Panjango preview badge in header */}
+      {pjRank.length>0&&<div style={{display:"inline-flex",alignItems:"center",gap:6,marginTop:6,padding:"5px 14px",borderRadius:20,background:"#E74C3C0A",border:"1px solid #E74C3C15"}}>
+        <span style={{fontSize:12}}>🤦</span>
+        <span style={{fontSize:11,fontWeight:700,color:"#E74C3C"}}>{pjRank[0].player.nickname||pjRank[0].player.name}</span>
+        <span style={{fontSize:9,color:K.txD}}>Panjango · {pjRank[0].count} voto{pjRank[0].count>1?"s":""}</span>
+      </div>}
     </G>
     {/* Tabs with counts */}
     <div style={{display:"flex",gap:6,marginBottom:14}}>
-      {[{id:"chat",l:"💬 CHAT",c:"#8B5CF6",cnt:msgs.length},{id:"mvp",l:"🏆 MVP",c:K.gold,cnt:matchVotes.length},{id:"photos",l:"📸 FOTOS",c:K.grn,cnt:(S.photos[match.id]||[]).length}].map(t=>
+      {[{id:"chat",l:"💬 CHAT",c:"#8B5CF6",cnt:msgs.length},{id:"mvp",l:"🏆 MVP",c:K.gold,cnt:matchVotes.length},{id:"panjango",l:"🤦 PANJANGO",c:"#E74C3C",cnt:matchPjVotes.length},{id:"photos",l:"📸 FOTOS",c:K.grn,cnt:(S.photos[match.id]||[]).length}].map(t=>
         <button key={t.id} onClick={()=>sTab(t.id)} style={{flex:1,padding:"10px 8px",borderRadius:10,fontFamily:fC,fontWeight:700,fontSize:12,border:`1px solid ${tab===t.id?t.c+"35":K.bd}`,background:tab===t.id?t.c+"10":"transparent",color:tab===t.id?t.c:K.txD,cursor:"pointer",position:"relative"}}>
           {t.l}
           {t.cnt>0&&<span style={{marginLeft:4,fontSize:9,padding:"1px 5px",borderRadius:8,background:t.c+"18",color:t.c}}>{t.cnt}</span>}
@@ -1787,12 +1963,94 @@ function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
       </>}
     </div>}
 
+    {tab==="panjango"&&<div>
+      {!match.played?<G style={{textAlign:"center",padding:30}}><p style={{color:K.txD}}>Votação disponível após a partida</p></G>:<>
+        {loggedPlayer&&!hasPjVoted&&!pjDone&&<G style={{padding:20,marginBottom:14,border:"1px solid #E74C3C20"}}>
+          <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#E74C3C",marginBottom:4,letterSpacing:"0.08em"}}>🤦 VOTE NO PANJANGO DA PARTIDA</div>
+          <p style={{fontSize:11,color:K.txD,marginBottom:12}}>Quem foi o pior em campo? Aquele que escorregou demais no sabão!</p>
+          {[ht,at].filter(Boolean).map(team=>{const tPlayers=allPlayers.filter(p=>team.playerIds.includes(p.id));return tPlayers.length?<div key={team.id} style={{marginBottom:10}}>
+            <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:team.color.bg,letterSpacing:"0.06em",marginBottom:5}}>{team.name}</div>
+            <div style={{display:"grid",gap:3}}>{tPlayers.map(p=>{
+              return <button key={p.id} onClick={()=>sPjId(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:9,border:`1px solid ${pjId===p.id?"#E74C3C50":K.bd}`,background:pjId===p.id?"#E74C3C0D":"transparent",cursor:"pointer",width:"100%",textAlign:"left",transition:"all 0.15s",color:K.tx}}>
+                <div style={{width:28,height:28,borderRadius:8,overflow:"hidden",background:team.color.bg+"10",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1px solid ${pjId===p.id?"#E74C3C30":K.bd}`}}>
+                  {p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:10,fontWeight:800,color:team.color.bg,fontFamily:fC}}>{(p.nickname||p.name)[0]}</span>}
+                </div>
+                {p.number&&<span style={{fontSize:10,fontWeight:800,color:team.color.bg,fontFamily:fC,minWidth:18}}>{p.number}</span>}
+                <span style={{fontSize:12,fontWeight:600,flex:1}}>{p.nickname||p.name}</span>
+                {p.position&&<span style={{fontSize:9,color:K.txD}}>{p.position}</span>}
+                {pjId===p.id&&<span style={{fontSize:14}}>✓</span>}
+              </button>;
+            })}</div>
+          </div>:null;})}
+          <BT onClick={doPjVote} disabled={!pjId} v="red" style={{width:"100%",justifyContent:"center",marginTop:6}}>🤦 CONFIRMAR MEU VOTO</BT>
+        </G>}
+        {loggedPlayer&&(hasPjVoted||pjDone)&&<G style={{textAlign:"center",padding:14,marginBottom:14,border:"1px solid #E74C3C18"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <span style={{fontSize:18}}>✅</span>
+            <div><span style={{color:"#E74C3C",fontSize:12,fontWeight:700}}>Voto registrado!</span>
+            {(()=>{const myVote=matchPjVotes.find(v=>v.voterId===loggedPlayer.id);const pjP=myVote?pl.find(p=>p.id===myVote.panjangoId):null;return pjP?<span style={{fontSize:11,color:K.txD,marginLeft:6}}>Você votou em {pjP.nickname||pjP.name}</span>:null;})()}
+            </div>
+          </div>
+        </G>}
+        {!loggedPlayer&&<G style={{textAlign:"center",padding:16,marginBottom:14,border:"1px solid #8B5CF618"}}>
+          <span style={{fontSize:16}}>🔒</span><p style={{color:K.txD,fontSize:12,marginTop:4}}>Faça login na <b style={{color:"#8B5CF6"}}>"Área do Atleta"</b> para votar no Panjango</p>
+        </G>}
+        {/* PANJANGO WINNER — Shame card */}
+        {pjRank.length>0&&(()=>{const winner=pjRank[0];const wTeam=tm.find(t=>t.playerIds?.includes(winner.player.id));const totalVotes=matchPjVotes.length;const pct=totalVotes?Math.round(winner.count/totalVotes*100):0;
+          return <G style={{textAlign:"center",padding:24,marginBottom:14,border:"1px solid #E74C3C25",background:"linear-gradient(180deg,#E74C3C06,transparent)"}}>
+            <div style={{fontSize:48,marginBottom:4}}>🤦</div>
+            <div style={{fontFamily:fC,fontSize:10,color:"#E74C3C",letterSpacing:"0.15em",marginBottom:10,fontWeight:700}}>PANJANGO DA PARTIDA</div>
+            <div style={{width:76,height:76,borderRadius:20,overflow:"hidden",margin:"0 auto 10px",background:"#E74C3C10",display:"flex",alignItems:"center",justifyContent:"center",border:"3px solid #E74C3C40",boxShadow:"0 0 30px #E74C3C15"}}>
+              {winner.player.photo?<img src={winner.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fH,fontSize:28,fontWeight:700,color:"#E74C3C"}}>{(winner.player.nickname||winner.player.name)[0]}</span>}
+            </div>
+            <div style={{fontFamily:fH,fontSize:24,fontWeight:700,color:"#E74C3C"}}>{winner.player.nickname||winner.player.name}</div>
+            {winner.player.number&&<div style={{fontSize:11,color:K.txD,marginTop:2}}>Camisa {winner.player.number}{winner.player.position?` · ${winner.player.position}`:""}</div>}
+            {wTeam&&<div style={{display:"inline-flex",alignItems:"center",gap:4,marginTop:6}}><Badge team={wTeam} size={14}/><span style={{fontSize:11,color:wTeam.color.bg,fontWeight:600}}>{wTeam.name}</span></div>}
+            <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:12}}>
+              <div style={{textAlign:"center"}}><div style={{fontFamily:fH,fontSize:20,fontWeight:700,color:"#E74C3C"}}>{winner.count}</div><div style={{fontSize:9,color:K.txD,fontFamily:fC}}>VOTOS</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontFamily:fH,fontSize:20,fontWeight:700,color:"#E74C3C"}}>{pct}%</div><div style={{fontSize:9,color:K.txD,fontFamily:fC}}>DOS VOTOS</div></div>
+            </div>
+          </G>;
+        })()}
+        {/* ALL VOTED PLAYERS — Progress bars */}
+        {pjRank.length>0&&<div style={{marginBottom:14}}>
+          <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.txD,letterSpacing:"0.06em",marginBottom:8}}>📊 VOTAÇÃO ({matchPjVotes.length} voto{matchPjVotes.length!==1?"s":""})</div>
+          <G style={{padding:0,overflow:"hidden"}}>
+            {pjRank.map((r,i)=>{const pct=matchPjVotes.length?Math.round(r.count/matchPjVotes.length*100):0;const rTeam=tm.find(t=>t.playerIds?.includes(r.player.id));const barColor=i===0?"#E74C3C":i===1?"#94A3B8":K.txM;
+              return <div key={r.player.id} style={{padding:"10px 14px",borderTop:i?`1px solid ${K.bd}`:"none"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                  <div style={{fontFamily:fH,fontWeight:700,fontSize:13,color:i===0?"#E74C3C":i===1?"#94A3B8":K.txM,width:22,textAlign:"center"}}>{i===0?"🤦":i===1?"2º":i===2?"3º":`${i+1}º`}</div>
+                  <div style={{width:26,height:26,borderRadius:7,overflow:"hidden",background:(rTeam?.color.bg||K.txM)+"10",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    {r.player.photo?<img src={r.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:9,fontWeight:800,color:rTeam?.color.bg||K.txD,fontFamily:fC}}>{(r.player.nickname||r.player.name)[0]}</span>}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:12}}>{r.player.nickname||r.player.name}</div>
+                    {rTeam&&<div style={{fontSize:9,color:rTeam.color.bg}}>{rTeam.name}</div>}
+                  </div>
+                  <div style={{fontFamily:fH,fontWeight:700,fontSize:16,color:barColor}}>{r.count}</div>
+                  <div style={{fontSize:10,color:K.txD,minWidth:30,textAlign:"right"}}>{pct}%</div>
+                </div>
+                <div style={{height:4,borderRadius:2,background:K.bd,overflow:"hidden",marginLeft:30}}>
+                  <div style={{height:"100%",borderRadius:2,background:barColor,width:`${pct}%`,transition:"width 0.5s ease"}}/>
+                </div>
+              </div>;
+            })}
+          </G>
+        </div>}
+        {matchPjVotes.length===0&&<G style={{textAlign:"center",padding:24}}>
+          <span style={{fontSize:32,display:"block",marginBottom:8}}>🤦</span>
+          <p style={{color:K.txD,fontSize:13}}>Nenhum voto ainda</p>
+          <p style={{color:K.txM,fontSize:11,marginTop:4}}>Seja o primeiro a escolher o Panjango!</p>
+        </G>}
+      </>}
+    </div>}
+
     {tab==="photos"&&<Gallery S={S} up={up} go={go} loggedPlayer={loggedPlayer} matchId={match.id} inline/>}
 
     {/* Instagram Card — only for played matches */}
     {match.played&&<div style={{marginTop:16}}>
       <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.accL,letterSpacing:"0.06em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📸 CARD PARA INSTAGRAM<div style={{flex:1,height:1,background:K.accL+"15"}}/></div>
-      <InstaCard match={match} teams={tm} players={pl} sponsors={S.sponsors||[]} votes={votes}/>
+      <InstaCard match={match} teams={tm} players={pl} sponsors={S.sponsors||[]} votes={votes} panjangoVotes={pjVotes||{}}/>
     </div>}
   </div>;
 }
@@ -2033,13 +2291,15 @@ function TVMode({S,go}){
 }
 
 /* ══════════ INSTAGRAM CARD GENERATOR (#13) ══════════ */
-function InstaCard({match,teams,players,sponsors,votes}){
+function InstaCard({match,teams,players,sponsors,votes,panjangoVotes}){
   const canvasRef=useRef(null);const[ready,sReady]=useState(false);
   const ht=teams.find(t=>t.id===match.homeTeamId),at=teams.find(t=>t.id===match.awayTeamId);
   const goals=match.goals||[];
   const mvpVotes=votes[match.id]||[];const tally={};mvpVotes.forEach(v=>{tally[v.mvpId]=(tally[v.mvpId]||0)+1;});
   const mvpEntry=Object.entries(tally).sort((a,b)=>b[1]-a[1])[0];
   const mvp=mvpEntry?players.find(p=>p.id===mvpEntry[0]):null;
+  const pjV=(panjangoVotes||{})[match.id]||[];const pjT={};pjV.forEach(v=>{pjT[v.panjangoId]=(pjT[v.panjangoId]||0)+1;});
+  const pjEntry=Object.entries(pjT).sort((a,b)=>b[1]-a[1])[0];const panjango=pjEntry?players.find(p=>p.id===pjEntry[0]):null;
   useEffect(()=>{
     const c=canvasRef.current;if(!c)return;const ctx=c.getContext("2d");c.width=1080;c.height=1080;
     // Background
@@ -2059,7 +2319,9 @@ function InstaCard({match,teams,players,sponsors,votes}){
     goals.slice(0,8).forEach(g=>{const p=players.find(x=>x.id===g.playerId);const t=teams.find(x=>x.id===g.teamId);
       ctx.fillStyle=t?.color.bg||"#C4A561";ctx.fillText(`⚽ ${g.minute}' ${p?.nickname||p?.name||"?"} (${t?.name||"?"})`,540,gy);gy+=32;});
     // MVP
-    if(mvp){ctx.fillStyle="#C4A561";ctx.font="bold 24px Barlow Condensed,sans-serif";ctx.fillText(`👑 MVP: ${mvp.nickname||mvp.name}`,540,gy+30);}
+    if(mvp){ctx.fillStyle="#C4A561";ctx.font="bold 24px Barlow Condensed,sans-serif";ctx.fillText(`👑 MVP: ${mvp.nickname||mvp.name}`,540,gy+30);gy+=35;}
+    // Panjango
+    if(panjango){ctx.fillStyle="#E74C3C";ctx.font="bold 24px Barlow Condensed,sans-serif";ctx.fillText(`🤦 Panjango: ${panjango.nickname||panjango.name}`,540,gy+30);}
     // Sponsors
     const topSponsors=sponsors.filter(s=>s.category==="Ouro"||s.category==="Prata").slice(0,3);
     if(topSponsors.length){ctx.fillStyle="#5A5647";ctx.font="600 18px Barlow Condensed,sans-serif";ctx.fillText(topSponsors.map(s=>s.name).join("  ·  "),540,1010);}
@@ -2118,6 +2380,7 @@ function PlayerStats({S,go,playerId}){
   const matchesPlayed=played.filter(m=>{const t=tm.find(t=>t.playerIds?.includes(p.id));return t&&(m.homeTeamId===t.id||m.awayTeamId===t.id);});
   const totalGoals=played.reduce((sum,m)=>(m.goals||[]).filter(g=>g.playerId===p.id).length+sum,0);
   let mvpCount=0;played.forEach(m=>{const mv=votes[m.id]||[];const t={};mv.forEach(v=>{t[v.mvpId]=(t[v.mvpId]||0)+1;});const best=Object.entries(t).sort((a,b)=>b[1]-a[1])[0];if(best&&best[0]===p.id)mvpCount++;});
+  let panjangoCount=0;const pjVotesAll=S.panjangoVotes||{};played.forEach(m=>{const pv=pjVotesAll[m.id]||[];const t={};pv.forEach(v=>{t[v.panjangoId]=(t[v.panjangoId]||0)+1;});const best=Object.entries(t).sort((a,b)=>b[1]-a[1])[0];if(best&&best[0]===p.id)panjangoCount++;});
   const goalsPerMatch=matchesPlayed.length?((totalGoals/matchesPlayed.length).toFixed(1)):"-";
   // Achievements
   const achievements=[];
@@ -2126,6 +2389,8 @@ function PlayerStats({S,go,playerId}){
   if(totalGoals>=10)achievements.push({icon:"🔥",label:"Artilheiro",desc:"10+ gols no campeonato"});
   if(mvpCount>=1)achievements.push({icon:"👑",label:"MVP",desc:"Eleito melhor da partida"});
   if(mvpCount>=3)achievements.push({icon:"💎",label:"MVP Lendário",desc:"MVP 3+ vezes"});
+  if(panjangoCount>=1)achievements.push({icon:"🤦",label:"Panjango",desc:"Eleito pior da partida"});
+  if(panjangoCount>=3)achievements.push({icon:"💀",label:"Panjango Lendário",desc:"Panjango 3+ vezes"});
   if(matchesPlayed.length>=5)achievements.push({icon:"🏟️",label:"Veterano de Sabão",desc:"5+ partidas jogadas"});
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb={p.nickname||p.name}/>
@@ -2140,8 +2405,8 @@ function PlayerStats({S,go,playerId}){
       {p.phrase&&<div style={{fontSize:12,color:K.gDm,marginTop:8,fontStyle:"italic"}}>"{p.phrase}"</div>}
     </G>
     {/* Stats Grid */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:14}}>
-      {[{v:matchesPlayed.length,l:"JOGOS",c:K.blu},{v:totalGoals,l:"GOLS",c:K.grn},{v:mvpCount,l:"MVPs",c:K.gold},{v:goalsPerMatch,l:"MÉDIA",c:K.accL}].map(s=><G key={s.l} style={{padding:14,textAlign:"center"}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:14}}>
+      {[{v:matchesPlayed.length,l:"JOGOS",c:K.blu},{v:totalGoals,l:"GOLS",c:K.grn},{v:mvpCount,l:"MVPs",c:K.gold},{v:panjangoCount,l:"PANJANGO",c:"#E74C3C"},{v:goalsPerMatch,l:"MÉDIA",c:K.accL}].map(s=><G key={s.l} style={{padding:14,textAlign:"center"}}>
         <div style={{fontFamily:fH,fontSize:28,fontWeight:700,color:s.c}}>{s.v}</div>
         <div style={{fontFamily:fC,fontSize:9,fontWeight:700,color:K.txD,letterSpacing:"0.08em"}}>{s.l}</div>
       </G>)}
