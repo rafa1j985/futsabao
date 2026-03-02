@@ -303,7 +303,7 @@ export default function App(){
   // Auto-clear save error toast after 5s
   useEffect(()=>{if(!saveError)return;const t=setTimeout(()=>sSetSaveError(null),5000);return()=>clearTimeout(t);},[saveError]);
 
-  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",assists:"Assistências",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
+  const SCREEN_NAMES={home:"Início",feed:"Hoje no Futsabão",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",assists:"Assistências",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
   const go=useCallback((s,x={})=>{
     sS(p=>({...p,screen:s,...x}));
     try{const title=SCREEN_NAMES[s]||s;window.history.pushState({screen:s},"",`#${s}`);document.title=`Futsabão — ${title}`;}catch(e){}
@@ -334,10 +334,11 @@ export default function App(){
   </div>;
 
   if(!role)return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>{!supabase&&<div role="status" style={{padding:"10px 14px",marginTop:12,marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}<LoginScreen onRole={sRole} light={light} toggleTheme={toggleTheme} S={S} sLoggedPlayer={sLoggedPlayer}/></div></div>;
-  const athleteScreens={home:()=><AthleteDashboard {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,assists:Assists,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
+  const athleteScreens={home:()=><AthleteDashboard {...props}/>,feed:()=><AthleteFeed {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,assists:Assists,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
   const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,assists:Assists,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation,recados:Recados};
   const SC=role==="admin"?adminScreens:athleteScreens;
   const C=SC[S.screen]||(role==="admin"?Home:()=><AthleteDashboard {...props}/>);
+  const isAthleteFeed=role==="athlete"&&S.screen==="feed";
   return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>
     {/* Role bar */}
     <header role="banner" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0"}}>
@@ -346,7 +347,7 @@ export default function App(){
         <button onClick={toggleTheme} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"3px 8px",fontSize:12,color:K.txD}} title={light?"Modo escuro":"Modo claro"} aria-label={light?"Ativar modo escuro":"Ativar modo claro"}>{light?"🌙":"☀️"}</button>
         <span style={{fontSize:10,fontFamily:fC,fontWeight:700,letterSpacing:"0.08em",color:role==="admin"?K.accL:K.grn,background:role==="admin"?K.acc+"10":K.grn+"10",padding:"3px 10px",borderRadius:6}}>{role==="admin"?"🔒 ORGANIZADOR":"⚽ ATLETA"}</span>
       </div>
-      {role==="admin"?<button onClick={()=>go("dashboard")} style={{background:"none",border:"none",color:K.blu,cursor:"pointer",fontSize:10,fontFamily:fC,fontWeight:700}}>📊 DASHBOARD</button>:<div/>}
+      {role==="admin"?<button onClick={()=>go("dashboard")} style={{background:"none",border:"none",color:K.blu,cursor:"pointer",fontSize:10,fontFamily:fC,fontWeight:700}}>📊 DASHBOARD</button>:isAthleteFeed?<button onClick={()=>go("home")} style={{background:"none",border:"none",color:K.grn,cursor:"pointer",fontSize:10,fontFamily:fC,fontWeight:700}}>← INÍCIO</button>:<div/>}
     </header>
     {!supabase&&<div role="status" style={{padding:"10px 14px",marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}
     <main role="main"><C {...props}/></main>
@@ -428,10 +429,6 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
   const hasTournament=(S.matches||[]).length>0;
   const[justRegistered,sJustRegistered]=useState(()=>{try{const v=sessionStorage.getItem("futsabao_just_registered");if(v){sessionStorage.removeItem("futsabao_just_registered");return true;}return false;}catch(e){return false;}});
   const[goalNotif,sGoalNotif]=useState(null);
-  const[hasSubmittedInterview,sHasSubmittedInterview]=useState(false);
-  const[interviewAnswer,sInterviewAnswer]=useState("");
-  const[generatingNews,sGeneratingNews]=useState(false);
-  const interviewPick=useRef(null);
   const dailyHeadlineGeneratingRef=useRef(false);
   const cartolaGeneratingRef=useRef(false);
   const torcedorGeneratingRef=useRef(false);
@@ -534,7 +531,6 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
     }).finally(()=>{torcedorGeneratingRef.current=false;sGeneratingTorcedor(false);});
   },[S.geminiKey,S.torcedorMessage,S.players,today]);
   const feedGeneratingRef=useRef(false);
-  const FEED_AUTHORS=[{authorType:"reporter",authorLabel:"Reporter",icon:"📰",color:K.gold},{authorType:"comentarista",authorLabel:"Comentarista",icon:"🎙️",color:K.blu},{authorType:"cartola",authorLabel:"Cartola",icon:"👔",color:K.accL},{authorType:"torcedor",authorLabel:"Torcedor",icon:"📢",color:"#F97316"},{authorType:"presidente",authorLabel:"Presidente Rafão",icon:"🎩",color:"#3B82F6"},{authorType:"arbitro",authorLabel:"Árbitro Rodolfo",icon:"⚖️",color:"#14B8A6"}];
   useEffect(()=>{
     if(!S.geminiKey||hasTournament||feedGeneratingRef.current)return;
     const feed=S.preTorneioFeed||[];
@@ -680,6 +676,9 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         </div>
       </G>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>go("feed")}>
+          <span style={{fontSize:26,display:"block"}}>📰</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.gold,marginTop:6}}>FEED</div>
+        </G>
         <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>go("bolao")}>
           <span style={{fontSize:26,display:"block"}}>🎰</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:"#F39C12",marginTop:6}}>BOLÃO</div>
         </G>
@@ -713,7 +712,7 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
     </G>;})()}
     <div style={!hasTournament?{marginBottom:16,padding:16,borderRadius:12,border:`1px solid ${K.bd}`,background:K.bg2}:{}}>
     {!hasTournament&&<div style={{fontFamily:fC,fontSize:13,fontWeight:700,color:K.gold,letterSpacing:"0.1em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>📰 HOJE NO FUTSABÃO<div style={{flex:1,height:1,background:K.gold+"25"}}/></div>}
-    {/* Manchete do dia — destaque único: card maior, animação */}
+    {/* Manchete do dia — resumo na Home */}
     {(S.dailyHeadline&&S.dailyHeadline.date===today)&&<div style={{marginBottom:20}}>
       <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📰 MANCHETE DO DIA<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
       <G style={{padding:22,borderLeft:`5px solid ${K.gold}`,background:K.gold+"08",animation:"fu 0.4s ease"}}>
@@ -726,136 +725,44 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
       </G>
     </div>}
     {generatingDailyHeadline&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando manchete do dia...</span></G>}
-    {/* Separador sutil entre Manchete e demais editoriais */}
-    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&(S.cartolaMessage||S.torcedorMessage||S.presidentMessage||S.refereeMessage)&&<div style={{height:1,background:K.bd,marginBottom:16,maxWidth:120,marginLeft:"auto",marginRight:"auto"}}/>}
-    {/* O Cartola falou — uma por dia */}
-    {(S.cartolaMessage&&S.cartolaMessage.date===today)&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>👔 O CARTOLA FALOU<div style={{flex:1,height:1,background:K.acc+"15"}}/></div>
-      <G style={{padding:16,borderLeft:`4px solid ${K.acc}`,background:K.acc+"08"}}>
-        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.cartolaMessage.text}"</p>
-        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Palavra do dirigente · {today}</div>
-      </G>
-    </div>}
-    {generatingCartola&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando palavra do Cartola...</span></G>}
-    {/* O Torcedor mandou — corneta do dia */}
-    {(S.torcedorMessage&&S.torcedorMessage.date===today)&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📢 O TORCEDOR MANDOU<div style={{flex:1,height:1,background:"#F9731615"}}/></div>
-      <G style={{padding:16,borderLeft:`4px solid #F97316`,background:"#F9731608"}}>
-        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.torcedorMessage.text}"</p>
-        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Corneta do dia · {today}</div>
-      </G>
-    </div>}
-    {generatingTorcedor&&<G style={{marginBottom:16,padding:20,textAlign:"center"}}><span style={{fontSize:14,color:K.txD}}>Carregando corneta do Torcedor...</span></G>}
-    {/* Palavra do Presidente */}
-    {(S.presidentMessage&&S.presidentMessage.date===today)&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#3B82F6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🎩 PALAVRA DO PRESIDENTE<div style={{flex:1,height:1,background:"#3B82F615"}}/></div>
-      <G style={{padding:16,borderLeft:"4px solid #3B82F6",background:"#3B82F608"}}>
-        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.presidentMessage.text}"</p>
-        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rafão — Presidente · {today}</div>
-      </G>
-    </div>}
-    {/* Palavra do Árbitro */}
-    {(S.refereeMessage&&S.refereeMessage.date===today)&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#14B8A6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>⚖️ PALAVRA DO ÁRBITRO<div style={{flex:1,height:1,background:"#14B8A615"}}/></div>
-      <G style={{padding:16,borderLeft:"4px solid #14B8A6",background:"#14B8A608"}}>
-        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.refereeMessage.text}"</p>
-        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rodolfo Seifert — Árbitro · {today}</div>
-      </G>
-    </div>}
-    </div>
-    {/* Ao vivo no pré-torneio — feed de personagens */}
+    {/* Resumo: 2 itens do feed ao vivo + CTA Ver todo o feed */}
     {!hasTournament&&(()=>{
       const feed=(S.preTorneioFeed||[]).filter(p=>p.createdAt&&p.createdAt.startsWith(today)).sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt)));
       const getAuthor=(type)=>{const x=FEED_AUTHORS.find(f=>f.authorType===type);return x||{authorLabel:type,icon:"💬",color:K.txD};};
-      if(feed.length===0)return <div style={{marginBottom:16}}><div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gDm,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📡 AO VIVO NO PRÉ-TORNEIO<div style={{flex:1,height:1,background:K.gold+"15"}}/></div><p style={{fontSize:12,color:K.txD,padding:"12px 0"}}>As notícias e falas do dia aparecem aqui ao longo do dia.</p></div>;
+      const preview=feed.slice(0,2);
       return <div style={{marginBottom:16}}>
-        <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📡 AO VIVO NO PRÉ-TORNEIO<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
-        <div style={{display:"grid",gap:10}}>
-          {feed.map(item=>{
-            const a=getAuthor(item.authorType);
-            return <G key={item.id} style={{padding:14,borderLeft:`4px solid ${a.color}`,background:a.color+"0C"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
-                <span style={{fontSize:12,fontWeight:700,color:a.color,fontFamily:fC}}>{a.icon} {item.authorLabel}</span>
-                {item.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(item.createdAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>}
-              </div>
-              <p style={{fontSize:13,color:K.tx,lineHeight:1.5,fontStyle:"italic"}}>"{item.text}"</p>
-            </G>;
-          })}
-        </div>
+        {preview.length>0&&<div style={{marginBottom:10}}>
+          <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.gold,letterSpacing:"0.06em",marginBottom:8}}>📡 AO VIVO — últimas</div>
+          <div style={{display:"grid",gap:8}}>
+            {preview.map(item=>{
+              const a=getAuthor(item.authorType);
+              return <G key={item.id} style={{padding:12,borderLeft:`4px solid ${a.color}`,background:a.color+"0C"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,marginBottom:4}}>
+                  <span style={{fontSize:11,fontWeight:700,color:a.color,fontFamily:fC}}>{a.icon} {item.authorLabel}</span>
+                  {item.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(item.createdAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>}
+                </div>
+                <p style={{fontSize:12,color:K.tx,lineHeight:1.45,fontStyle:"italic"}}>"{item.text}"</p>
+              </G>;
+            })}
+          </div>
+        </div>}
+        <G hover style={{cursor:"pointer",padding:"14px 18px",border:`2px solid ${K.gold}30`,background:K.gold+"0A",borderRadius:12}} onClick={()=>go("feed")}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <span style={{fontFamily:fC,fontWeight:700,fontSize:13,color:K.gold}}>📰 Ver todo o feed</span>
+            <span style={{fontSize:18,color:K.gold}}>›</span>
+          </div>
+          <p style={{fontSize:11,color:K.txD,marginTop:4}}>Manchete, Cartola, torcedor, presidente, árbitro, ao vivo e plantão</p>
+        </G>
       </div>;
     })()}
-    {/* Pergunta do jornalista — só para atleta logado que ainda não respondeu nesta visita */}
-    {loggedPlayer&&!hasSubmittedInterview&&(()=>{
-      const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
-      if(!interviewPick.current)interviewPick.current={journalist:jList[Math.floor(Math.random()*jList.length)],question:JOURNALIST_QUESTIONS[Math.floor(Math.random()*JOURNALIST_QUESTIONS.length)]};
-      const{journalist,question}=interviewPick.current;
-      const submit=async()=>{
-        const ans=interviewAnswer.trim();
-        if(!ans)return;
-        const outlets=BROADCASTERS?.length?BROADCASTERS:[{id:"b1",name:"Cazé TV",color:"#FF4654"}];
-        const outlet=outlets[Math.floor(Math.random()*outlets.length)];
-        const playerName=loggedPlayer.name||"Atleta";
-        const dateStr=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long"});
-        let headline=`${playerName} responde sobre o torneio`;
-        let body=`Durante uma entrevista neste dia ${dateStr}, o atleta ${playerName} falou sobre o torneio de futsabão e respondeu com bom humor quando o jornalista ${journalist.name} da ${outlet.name} o questionou sobre "${question}". ${playerName} foi direto: "${ans.slice(0,200)}".`;
-        const gk=S.geminiKey;
-        if(gk){
-          sGeneratingNews(true);
-          const prompt=`Você é um editor de portal esportivo. O jornalista ${journalist.name} (${outlet.name}) entrevistou o atleta ${playerName} no Futsabão (campeonato de futebol de sabão).
-Pergunta: "${question}". Resposta do atleta: "${ans.slice(0,250)}".
-
-OBRIGATÓRIO: Gere uma MINI-NOTÍCIA (2 ou 3 frases) no formato de reportagem, NÃO no formato "Fulano perguntou a Ciclano: ... Resposta: ...".
-Exemplo de formato correto: "Durante uma entrevista neste dia 01 de março, o atleta Felpis falou sobre o torneio de futsabão e respondeu com bom humor quando o jornalista Mauro Naves da ESPN o questionou sobre 'Quem é o jogador mais difícil de marcar?'. Felpis foi direto: 'Não tem.'"
-- Use o dia e mês atuais, o nome do atleta, do jornalista e do veículo. Inclua a pergunta entre aspas e a resposta do atleta entre aspas no final.
-- Pode dar um toque sensacionalista ou de zueira leve, mas mantenha o formato de notícia curta.
-
-Gere em exatamente 2 linhas:
-Linha 1: manchete curta (máx 60 caracteres).
-Linha 2: texto da mini-notícia no formato de reportagem acima (máx 350 caracteres).
-Responda APENAS com essas duas linhas, sem título extra.`;
-          const raw=await callGemini(prompt,gk);
-          if(raw){
-            const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean);
-            if(lines.length>=1)headline=lines[0].slice(0,120);
-            if(lines.length>=2)body=lines.slice(1).join(" ").slice(0,400);
-          }
-          sGeneratingNews(false);
-        }
-        const newItem={id:uid(),journalistId:journalist.id,journalistName:journalist.name,playerId:loggedPlayer.id,playerName:playerName,question,answer:ans.slice(0,250),outletId:outlet.id,outletName:outlet.name,outletColor:outlet.color||K.gold,headline,body,createdAt:new Date().toISOString()};
-        up({athleteNews:[...(S.athleteNews||[]),newItem]});
-        sHasSubmittedInterview(true);
-        sInterviewAnswer("");
-      };
-      return <G style={{marginBottom:16,padding:22,border:`2px solid #0EA5E935`,background:`linear-gradient(135deg,#0EA5E912,#0EA5E908)`}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-          <span style={{fontSize:28}}>🎤</span>
-          <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.06em"}}>{journalist.name} pergunta:</div>
-        </div>
-        <p style={{fontSize:15,color:K.tx,fontWeight:600,marginBottom:14,lineHeight:1.4}}>{question}</p>
-        <textarea value={interviewAnswer} onChange={e=>sInterviewAnswer(e.target.value.slice(0,250))} placeholder="Sua resposta (até 250 caracteres)..." maxLength={250} rows={3} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
-        <div style={{fontSize:10,color:K.txD,marginTop:6}}>{interviewAnswer.length}/250</div>
-        <BT onClick={submit} disabled={!interviewAnswer.trim()||generatingNews} style={{marginTop:14}}>{generatingNews?"GERANDO NOTÍCIA...":"PUBLICAR RESPOSTA"}</BT>
-      </G>;
-    })()}
-    {/* Feed de mini-notícias — Plantão com avatar do veículo */}
-    {(S.athleteNews||[]).length>0&&<div style={{marginBottom:16}}>
-      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📰 PLANTÃO<div style={{flex:1,height:1,background:"#0EA5E915"}}/></div>
-      <div style={{display:"grid",gap:12}}>
-        {[...(S.athleteNews||[])].sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt))).map(n=>(
-          <G key={n.id} style={{padding:14,borderLeft:`4px solid ${n.outletColor||K.gold}`,display:"flex",gap:12,alignItems:"flex-start"}}>
-            <div style={{width:36,height:36,borderRadius:10,background:(n.outletColor||K.gold)+"25",border:`1px solid ${(n.outletColor||K.gold)}40`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:fH,fontSize:14,fontWeight:700,color:n.outletColor||K.gold,flexShrink:0}}>{(n.outletName||"N")[0]}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,flexWrap:"wrap"}}>
-                <span style={{fontSize:10,fontWeight:700,color:n.outletColor||K.gold,fontFamily:fC}}>{n.outletName}</span>
-                {n.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(n.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
-              </div>
-              <div style={{fontFamily:fH,fontSize:14,fontWeight:700,color:K.tx,marginBottom:6}}>{n.headline}</div>
-              <p style={{fontSize:12,color:K.txD,lineHeight:1.5}}>{n.body}</p>
-            </div>
-          </G>
-        ))}
+    {hasTournament&&(S.dailyHeadline||S.cartolaMessage||S.presidentMessage||S.refereeMessage||(S.athleteNews||[]).length>0)&&<G hover style={{cursor:"pointer",marginBottom:16,padding:"14px 18px",border:`2px solid ${K.gold}30`,background:K.gold+"0A",borderRadius:12}} onClick={()=>go("feed")}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+        <span style={{fontFamily:fC,fontWeight:700,fontSize:13,color:K.gold}}>📰 Hoje no Futsabão</span>
+        <span style={{fontSize:18,color:K.gold}}>›</span>
       </div>
-    </div>}
+      <p style={{fontSize:11,color:K.txD,marginTop:4}}>Ver manchete, recados e plantão</p>
+    </G>}
+    </div>
     {/* Info cards */}
     <div style={!hasTournament?{marginBottom:16,padding:16,borderRadius:12,border:`1px solid ${K.bd}`,background:K.bg2}:{}}>
     {!hasTournament&&<div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:12,display:"flex",alignItems:"center",gap:8}}>🏟️ FICHA DO CAMPEONATO<div style={{flex:1,height:1,background:K.acc+"20"}}/></div>}
@@ -1095,6 +1002,159 @@ Responda APENAS com essas duas linhas, sem título extra.`;
         })}
       </div>}
     </>}
+  </div>;
+}
+
+/* ══════════ ATHLETE FEED (Hoje no Futsabão) ══════════ */
+const FEED_AUTHORS=[{authorType:"reporter",authorLabel:"Reporter",icon:"📰",color:K.gold},{authorType:"comentarista",authorLabel:"Comentarista",icon:"🎙️",color:K.blu},{authorType:"cartola",authorLabel:"Cartola",icon:"👔",color:K.accL},{authorType:"torcedor",authorLabel:"Torcedor",icon:"📢",color:"#F97316"},{authorType:"presidente",authorLabel:"Presidente Rafão",icon:"🎩",color:"#3B82F6"},{authorType:"arbitro",authorLabel:"Árbitro Rodolfo",icon:"⚖️",color:"#14B8A6"}];
+function AthleteFeed({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
+  const hasTournament=(S.matches||[]).length>0;
+  const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
+  const[hasSubmittedInterview,sHasSubmittedInterview]=useState(false);
+  const[interviewAnswer,sInterviewAnswer]=useState("");
+  const[generatingNews,sGeneratingNews]=useState(false);
+  const interviewPick=useRef(null);
+  return <div style={{paddingTop:10,paddingBottom:44}}>
+    <BB onClick={()=>go("home")} crumb="HOJE NO FUTSABÃO"/>
+    <div style={{fontFamily:fC,fontSize:13,fontWeight:700,color:K.gold,letterSpacing:"0.1em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>📰 HOJE NO FUTSABÃO<div style={{flex:1,height:1,background:K.gold+"25"}}/></div>
+    {/* Manchete do dia */}
+    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&<div style={{marginBottom:20}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📰 MANCHETE DO DIA<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
+      <G style={{padding:22,borderLeft:`5px solid ${K.gold}`,background:K.gold+"08",animation:"fu 0.4s ease"}}>
+        <div style={{fontFamily:fH,fontSize:20,fontWeight:700,color:K.tx,marginBottom:12,lineHeight:1.3}}>{S.dailyHeadline.headline}</div>
+        {S.dailyHeadline.body&&<p style={{fontSize:14,color:K.txD,lineHeight:1.55,marginBottom:14}}>{S.dailyHeadline.body}</p>}
+        {S.dailyHeadline.dispute&&<div style={{padding:"12px 16px",borderRadius:10,border:`1px solid ${K.bdh}`,background:K.bg2}}>
+          <div style={{fontSize:10,fontWeight:700,color:K.gDm,fontFamily:fC,letterSpacing:"0.06em",marginBottom:6}}>🎙️ NA MESA — Comentaristas discordam</div>
+          <p style={{fontSize:12,color:K.tx,fontStyle:"italic",lineHeight:1.45}}>"{S.dailyHeadline.dispute}"</p>
+        </div>}
+      </G>
+    </div>}
+    {(S.dailyHeadline&&S.dailyHeadline.date===today)&&(S.cartolaMessage||S.torcedorMessage||S.presidentMessage||S.refereeMessage)&&<div style={{height:1,background:K.bd,marginBottom:16,maxWidth:120,marginLeft:"auto",marginRight:"auto"}}/>}
+    {/* O Cartola falou */}
+    {(S.cartolaMessage&&S.cartolaMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>👔 O CARTOLA FALOU<div style={{flex:1,height:1,background:K.acc+"15"}}/></div>
+      <G style={{padding:16,borderLeft:`4px solid ${K.acc}`,background:K.acc+"08"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.cartolaMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Palavra do dirigente · {today}</div>
+      </G>
+    </div>}
+    {/* O Torcedor mandou */}
+    {(S.torcedorMessage&&S.torcedorMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📢 O TORCEDOR MANDOU<div style={{flex:1,height:1,background:"#F9731615"}}/></div>
+      <G style={{padding:16,borderLeft:`4px solid #F97316`,background:"#F9731608"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.torcedorMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Corneta do dia · {today}</div>
+      </G>
+    </div>}
+    {/* Palavra do Presidente */}
+    {(S.presidentMessage&&S.presidentMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#3B82F6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🎩 PALAVRA DO PRESIDENTE<div style={{flex:1,height:1,background:"#3B82F615"}}/></div>
+      <G style={{padding:16,borderLeft:"4px solid #3B82F6",background:"#3B82F608"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.presidentMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rafão — Presidente · {today}</div>
+      </G>
+    </div>}
+    {/* Palavra do Árbitro */}
+    {(S.refereeMessage&&S.refereeMessage.date===today)&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#14B8A6",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>⚖️ PALAVRA DO ÁRBITRO<div style={{flex:1,height:1,background:"#14B8A615"}}/></div>
+      <G style={{padding:16,borderLeft:"4px solid #14B8A6",background:"#14B8A608"}}>
+        <p style={{fontSize:14,color:K.tx,fontStyle:"italic",lineHeight:1.5}}>"{S.refereeMessage.text}"</p>
+        <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rodolfo Seifert — Árbitro · {today}</div>
+      </G>
+    </div>}
+    {/* Ao vivo no pré-torneio */}
+    {!hasTournament&&(()=>{
+      const feed=(S.preTorneioFeed||[]).filter(p=>p.createdAt&&p.createdAt.startsWith(today)).sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt)));
+      const getAuthor=(type)=>{const x=FEED_AUTHORS.find(f=>f.authorType===type);return x||{authorLabel:type,icon:"💬",color:K.txD};};
+      if(feed.length===0)return <div style={{marginBottom:16}}><div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gDm,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📡 AO VIVO NO PRÉ-TORNEIO<div style={{flex:1,height:1,background:K.gold+"15"}}/></div><p style={{fontSize:12,color:K.txD,padding:"12px 0"}}>As notícias e falas do dia aparecem aqui ao longo do dia.</p></div>;
+      return <div style={{marginBottom:16}}>
+        <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📡 AO VIVO NO PRÉ-TORNEIO<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
+        <div style={{display:"grid",gap:10}}>
+          {feed.map(item=>{
+            const a=getAuthor(item.authorType);
+            return <G key={item.id} style={{padding:14,borderLeft:`4px solid ${a.color}`,background:a.color+"0C"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                <span style={{fontSize:12,fontWeight:700,color:a.color,fontFamily:fC}}>{a.icon} {item.authorLabel}</span>
+                {item.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(item.createdAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</span>}
+              </div>
+              <p style={{fontSize:13,color:K.tx,lineHeight:1.5,fontStyle:"italic"}}>"{item.text}"</p>
+            </G>;
+          })}
+        </div>
+      </div>;
+    })()}
+    {/* Pergunta do jornalista */}
+    {loggedPlayer&&!hasSubmittedInterview&&(()=>{
+      const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
+      if(!interviewPick.current)interviewPick.current={journalist:jList[Math.floor(Math.random()*jList.length)],question:JOURNALIST_QUESTIONS[Math.floor(Math.random()*JOURNALIST_QUESTIONS.length)]};
+      const{journalist,question}=interviewPick.current;
+      const submit=async()=>{
+        const ans=interviewAnswer.trim();
+        if(!ans)return;
+        const outlets=BROADCASTERS?.length?BROADCASTERS:[{id:"b1",name:"Cazé TV",color:"#FF4654"}];
+        const outlet=outlets[Math.floor(Math.random()*outlets.length)];
+        const playerName=loggedPlayer.name||"Atleta";
+        const dateStr=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long"});
+        let headline=`${playerName} responde sobre o torneio`;
+        let body=`Durante uma entrevista neste dia ${dateStr}, o atleta ${playerName} falou sobre o torneio de futsabão e respondeu com bom humor quando o jornalista ${journalist.name} da ${outlet.name} o questionou sobre "${question}". ${playerName} foi direto: "${ans.slice(0,200)}".`;
+        const gk=S.geminiKey;
+        if(gk){
+          sGeneratingNews(true);
+          const prompt=`Você é um editor de portal esportivo. O jornalista ${journalist.name} (${outlet.name}) entrevistou o atleta ${playerName} no Futsabão (campeonato de futebol de sabão).
+Pergunta: "${question}". Resposta do atleta: "${ans.slice(0,250)}".
+
+OBRIGATÓRIO: Gere uma MINI-NOTÍCIA (2 ou 3 frases) no formato de reportagem, NÃO no formato "Fulano perguntou a Ciclano: ... Resposta: ...".
+Exemplo de formato correto: "Durante uma entrevista neste dia 01 de março, o atleta Felpis falou sobre o torneio de futsabão e respondeu com bom humor quando o jornalista Mauro Naves da ESPN o questionou sobre 'Quem é o jogador mais difícil de marcar?'. Felpis foi direto: 'Não tem.'"
+- Use o dia e mês atuais, o nome do atleta, do jornalista e do veículo. Inclua a pergunta entre aspas e a resposta do atleta entre aspas no final.
+- Pode dar um toque sensacionalista ou de zueira leve, mas mantenha o formato de notícia curta.
+
+Gere em exatamente 2 linhas:
+Linha 1: manchete curta (máx 60 caracteres).
+Linha 2: texto da mini-notícia no formato de reportagem acima (máx 350 caracteres).
+Responda APENAS com essas duas linhas, sem título extra.`;
+          const raw=await callGemini(prompt,gk);
+          if(raw){
+            const lines=raw.split("\n").map(s=>s.trim()).filter(Boolean);
+            if(lines.length>=1)headline=lines[0].slice(0,120);
+            if(lines.length>=2)body=lines.slice(1).join(" ").slice(0,400);
+          }
+          sGeneratingNews(false);
+        }
+        const newItem={id:uid(),journalistId:journalist.id,journalistName:journalist.name,playerId:loggedPlayer.id,playerName:playerName,question,answer:ans.slice(0,250),outletId:outlet.id,outletName:outlet.name,outletColor:outlet.color||K.gold,headline,body,createdAt:new Date().toISOString()};
+        up({athleteNews:[...(S.athleteNews||[]),newItem]});
+        sHasSubmittedInterview(true);
+        sInterviewAnswer("");
+      };
+      return <G style={{marginBottom:16,padding:22,border:`2px solid #0EA5E935`,background:`linear-gradient(135deg,#0EA5E912,#0EA5E908)`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <span style={{fontSize:28}}>🎤</span>
+          <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.06em"}}>{journalist.name} pergunta:</div>
+        </div>
+        <p style={{fontSize:15,color:K.tx,fontWeight:600,marginBottom:14,lineHeight:1.4}}>{question}</p>
+        <textarea value={interviewAnswer} onChange={e=>sInterviewAnswer(e.target.value.slice(0,250))} placeholder="Sua resposta (até 250 caracteres)..." maxLength={250} rows={3} style={{width:"100%",padding:"12px 14px",borderRadius:10,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
+        <div style={{fontSize:10,color:K.txD,marginTop:6}}>{interviewAnswer.length}/250</div>
+        <BT onClick={submit} disabled={!interviewAnswer.trim()||generatingNews} style={{marginTop:14}}>{generatingNews?"GERANDO NOTÍCIA...":"PUBLICAR RESPOSTA"}</BT>
+      </G>;
+    })()}
+    {/* Plantão */}
+    {(S.athleteNews||[]).length>0&&<div style={{marginBottom:16}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#0EA5E9",letterSpacing:"0.08em",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>📰 PLANTÃO<div style={{flex:1,height:1,background:"#0EA5E915"}}/></div>
+      <div style={{display:"grid",gap:12}}>
+        {[...(S.athleteNews||[])].sort((a,b)=>(new Date(b.createdAt))-(new Date(a.createdAt))).map(n=>(
+          <G key={n.id} style={{padding:14,borderLeft:`4px solid ${n.outletColor||K.gold}`,display:"flex",gap:12,alignItems:"flex-start"}}>
+            <div style={{width:36,height:36,borderRadius:10,background:(n.outletColor||K.gold)+"25",border:`1px solid ${(n.outletColor||K.gold)}40`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:fH,fontSize:14,fontWeight:700,color:n.outletColor||K.gold,flexShrink:0}}>{(n.outletName||"N")[0]}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6,flexWrap:"wrap"}}>
+                <span style={{fontSize:10,fontWeight:700,color:n.outletColor||K.gold,fontFamily:fC}}>{n.outletName}</span>
+                {n.createdAt&&<span style={{fontSize:10,color:K.txD}}>{new Date(n.createdAt).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>}
+              </div>
+              <div style={{fontFamily:fH,fontSize:14,fontWeight:700,color:K.tx,marginBottom:6}}>{n.headline}</div>
+              <p style={{fontSize:12,color:K.txD,lineHeight:1.5}}>{n.body}</p>
+            </div>
+          </G>
+        ))}
+      </div>
+    </div>}
   </div>;
 }
 
