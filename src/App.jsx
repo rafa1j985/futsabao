@@ -303,7 +303,7 @@ export default function App(){
   // Auto-clear save error toast after 5s
   useEffect(()=>{if(!saveError)return;const t=setTimeout(()=>sSetSaveError(null),5000);return()=>clearTimeout(t);},[saveError]);
 
-  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
+  const SCREEN_NAMES={home:"Início",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",assists:"Assistências",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
   const go=useCallback((s,x={})=>{
     sS(p=>({...p,screen:s,...x}));
     try{const title=SCREEN_NAMES[s]||s;window.history.pushState({screen:s},"",`#${s}`);document.title=`Futsabão — ${title}`;}catch(e){}
@@ -334,8 +334,8 @@ export default function App(){
   </div>;
 
   if(!role)return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>{!supabase&&<div role="status" style={{padding:"10px 14px",marginTop:12,marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}<LoginScreen onRole={sRole} light={light} toggleTheme={toggleTheme} S={S} sLoggedPlayer={sLoggedPlayer}/></div></div>;
-  const athleteScreens={home:()=><AthleteDashboard {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
-  const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation,recados:Recados};
+  const athleteScreens={home:()=><AthleteDashboard {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,assists:Assists,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
+  const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,assists:Assists,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation,recados:Recados};
   const SC=role==="admin"?adminScreens:athleteScreens;
   const C=SC[S.screen]||(role==="admin"?Home:()=><AthleteDashboard {...props}/>);
   return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>
@@ -614,7 +614,7 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
   const h2h=(t1,t2)=>{const m=mt.filter(m=>m.played&&((m.homeTeamId===t1&&m.awayTeamId===t2)||(m.homeTeamId===t2&&m.awayTeamId===t1)));let p1=0,p2=0;m.forEach(x=>{const s1=x.homeTeamId===t1?x.homeScore:x.awayScore;const s2=x.homeTeamId===t1?x.awayScore:x.homeScore;if(s1>s2)p1+=3;else if(s1===s2){p1++;p2++;}else p2+=3;});return p1-p2;};
   const st=tm.map(team=>{const ms=mt.filter(m=>m.played&&(m.homeTeamId===team.id||m.awayTeamId===team.id));let w=0,d=0,l=0,gf=0,ga=0;ms.forEach(m=>{const isH=m.homeTeamId===team.id;const s=isH?m.homeScore:m.awayScore;const c=isH?m.awayScore:m.homeScore;gf+=s;ga+=c;if(s>c)w++;else if(s===c)d++;else l++;});return{team,p:ms.length,w,d,l,gf,ga,gd:gf-ga,pts:w*3+d};}).sort((a,b)=>{if(b.pts!==a.pts)return b.pts-a.pts;if(b.w!==a.w)return b.w-a.w;if(b.gd!==a.gd)return b.gd-a.gd;if(b.gf!==a.gf)return b.gf-a.gf;return h2h(b.team.id,a.team.id);});
   // Scorers
-  const allG=played.flatMap(m=>m.goals||[]);const sMap={};allG.forEach(g=>{if(!sMap[g.playerId])sMap[g.playerId]={goals:0,teamId:g.teamId};sMap[g.playerId].goals++;});
+  const allG=played.flatMap(m=>m.goals||[]).filter(g=>!g.ownGoal);const sMap={};allG.forEach(g=>{if(!sMap[g.playerId])sMap[g.playerId]={goals:0,teamId:g.teamId};sMap[g.playerId].goals++;});
   const sc=Object.entries(sMap).map(([pid,d])=>({player:pl.find(p=>p.id===pid),team:tm.find(t=>t.id===d.teamId),goals:d.goals})).filter(s=>s.player&&s.team).sort((a,b)=>b.goals-a.goals).slice(0,5);
   // Last results
   const lastResults=played.slice(-6).reverse();
@@ -670,6 +670,9 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         </G>
         <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>{up({viewPlayerId:loggedPlayer.id});go("playerstats");}}>
           <span style={{fontSize:26,display:"block"}}>📊</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:K.blu,marginTop:6}}>MINHA FICHA</div>
+        </G>
+        <G hover className="athlete-action-card" style={{cursor:"pointer",padding:"14px 10px",textAlign:"center"}} onClick={()=>go("assists")}>
+          <span style={{fontSize:26,display:"block"}}>🤝</span><div style={{fontFamily:fC,fontWeight:700,fontSize:11,color:"#14B8A6",marginTop:6}}>ASSISTÊNCIAS</div>
         </G>
       </div>
       {/* Meus números */}
@@ -1044,11 +1047,15 @@ Responda APENAS com essas duas linhas, sem título extra.`;
       {tm.length>0&&<div style={{marginBottom:16}}>
         <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🛡️ TIMES ({tm.length})<div style={{flex:1,height:1,background:K.acc+"12"}}/></div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-          {tm.map(t=><G key={t.id} style={{padding:"12px 10px",textAlign:"center"}}>
-            <Badge team={t} size={36}/>
-            <div style={{fontFamily:fC,fontWeight:700,fontSize:12,marginTop:6}}>{t.name}</div>
-            <div style={{fontSize:10,color:K.txD,marginTop:2}}>{t.playerIds.length} jogadores</div>
-          </G>)}
+          {tm.map(t=>{
+            const teamPlayers=(t.playerIds||[]).map(pid=>pl.find(p=>p.id===pid)).filter(Boolean);
+            return <G key={t.id} style={{padding:"12px 10px",textAlign:"center"}}>
+              <Badge team={t} size={36}/>
+              <div style={{fontFamily:fC,fontWeight:700,fontSize:12,marginTop:6}}>{t.name}</div>
+              <div style={{fontSize:10,color:K.txD,marginTop:2}}>{t.playerIds.length} jogadores</div>
+              {teamPlayers.length>0&&<div style={{fontSize:9,color:K.txM,marginTop:6,textAlign:"left",lineHeight:1.35}}>{teamPlayers.map(p=>{const apelido=p.nickname?.trim();const exibir=apelido||p.name;return <div key={p.id}>{exibir}{p.number?` #${p.number}`:""}</div>})}</div>}
+            </G>;
+          })}
         </div>
       </div>}
 
@@ -1475,7 +1482,7 @@ function Teams({S,up,go}){
 
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="TIMES"/><SH icon="🛡️" title="TIMES" sub={`${pl.length} jogadores · ${free.length} disponíveis`} color={K.accL}/>
-    <G style={{marginBottom:14,padding:18}}><LB>QUANTIDADE</LB><div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>{[2,3,4,5,6,7,8].map(n=><button key={n} onClick={()=>sNum(n)} style={{width:40,height:40,borderRadius:9,fontWeight:800,fontSize:15,fontFamily:fC,border:`1px solid ${num===n?K.gold:K.bd}`,cursor:"pointer",background:num===n?K.gold+"12":"transparent",color:num===n?K.gold:K.txD,transition:"all 0.2s"}}>{n}</button>)}<BT onClick={create} style={{marginLeft:"auto"}}>{tm.length?"ATUALIZAR":"CRIAR"}</BT></div></G>
+    <G style={{marginBottom:14,padding:18}}><LB>QUANTIDADE</LB><div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>{[2,3,4,5,6,7,8,9,10,11,12].map(n=><button key={n} onClick={()=>sNum(n)} style={{width:40,height:40,borderRadius:9,fontWeight:800,fontSize:15,fontFamily:fC,border:`1px solid ${num===n?K.gold:K.bd}`,cursor:"pointer",background:num===n?K.gold+"12":"transparent",color:num===n?K.gold:K.txD,transition:"all 0.2s"}}>{n}</button>)}<BT onClick={create} style={{marginLeft:"auto"}}>{tm.length?"ATUALIZAR":"CRIAR"}</BT></div></G>
     {tm.length>0&&<><G style={{marginBottom:16,padding:18}}>
       <LB>DISTRIBUIÇÃO</LB>
       <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>{[{id:"manual",l:"✋ MANUAL"},{id:"random",l:"🎲 SORTEIO"},{id:"selective",l:"⭐ SELETIVO"},{id:"rating",l:"📊 POR NOTA"}].map(m=><button key={m.id} onClick={()=>sMode(m.id)} style={{padding:"9px 16px",borderRadius:9,fontWeight:700,fontSize:11,fontFamily:fC,letterSpacing:"0.06em",border:`1px solid ${mode===m.id?K.gold:K.bd}`,cursor:"pointer",background:mode===m.id?K.gold+"0D":"transparent",color:mode===m.id?K.gold:K.txD,transition:"all 0.2s"}}>{m.l}</button>)}</div>
@@ -1505,11 +1512,12 @@ function Teams({S,up,go}){
 function Tournament({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
   const[fmt,sFmt]=useState(S.tournament?.format||"round-robin");const[emId,sEmId]=useState(null);const[eH,sEH]=useState(0);const[eA,sEA]=useState(0);const[eHP,sEHP]=useState(null);const[eAP,sEAP]=useState(null);
   const[confirmReset,sConfirmReset]=useState(false);
+  const[confirmWipe,sConfirmWipe]=useState(false);
   const[koCount,sKoCount]=useState(S.tournament?.koCount||4);
   const{teams:tm,matches:mt}=S;
   const needsKoConfig=fmt==="two-groups"||fmt==="group-knockout"||fmt==="round-robin";
-  const maxKo=Math.min(tm.length,10);
-  const koOptions=[];for(let i=2;i<=maxKo;i+=2)koOptions.push(i);
+  const maxKo=Math.min(tm.length,12);
+  const koOptions=[];for(let n=2;n<=maxKo;n*=2)koOptions.push(n);
   const gen=()=>{
     if(fmt==="two-groups"){const r=genTwoGroups(tm.map(t=>t.id));up({matches:r.matches,tournament:{format:fmt,started:true,groups:r.groups,koCount,koGenerated:false}});}
     else if(fmt==="group-knockout"){const r=genTwoGroups(tm.map(t=>t.id));up({matches:r.matches,tournament:{format:fmt,started:true,groups:r.groups,koCount,koGenerated:false}});}
@@ -1552,6 +1560,33 @@ function Tournament({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
   const se=()=>{up({matches:mt.map(m=>m.id===emId?{...m,homeScore:eH,awayScore:eA,played:true,hPen:eHP,aPen:eAP}:m)});sEmId(null);};
   const rm=()=>{up({matches:mt.map(m=>m.id===emId?{...m,homeScore:null,awayScore:null,played:false,goals:[],hPen:null,aPen:null}:m)});sEmId(null);};
   const em=mt.find(m=>m.id===emId);
+
+  const getKOWinnerId=(m)=>{
+    if(!m?.played)return null;
+    const hs=m.homeScore,as=m.awayScore;
+    if(hs==null||as==null)return null;
+    if(hs>as)return m.homeTeamId;
+    if(as>hs)return m.awayTeamId;
+    if(m.hPen!=null&&m.aPen!=null){
+      if(m.hPen>m.aPen)return m.homeTeamId;
+      if(m.aPen>m.hPen)return m.awayTeamId;
+    }
+    return null;
+  };
+  const koAll=mt.filter(m=>m.phase==="knockout");
+  const lastKORound=koAll.length?Math.max(...koAll.map(m=>m.round||1)):null;
+  const lastKOMatches=lastKORound==null?[]:koAll.filter(m=>m.round===lastKORound);
+  const koWinnersRaw=lastKOMatches.map(getKOWinnerId);
+  const canGenNextKO=lastKOMatches.length>1&&lastKOMatches.every(m=>m.played)&&koWinnersRaw.every(Boolean)&&koWinnersRaw.length>=2&&koWinnersRaw.length%2===0;
+  const genNextKORound=()=>{
+    if(!canGenNextKO)return;
+    const winners=koWinnersRaw;
+    const nextRound=(lastKORound||1)+1;
+    const nm=[];
+    for(let i=0;i<winners.length;i+=2)nm.push(mk(nextRound,"knockout",winners[i],winners[i+1]));
+    up({matches:[...mt,...nm]});
+  };
+
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="CAMPEONATO"/><SH icon="🏆" title="CAMPEONATO" color={K.gBr}/>
     {/* Data de início do torneio — pré-torneio countdown para atletas */}
@@ -1572,14 +1607,26 @@ function Tournament({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
       </div>}
       <BT onClick={gen}>▶ GERAR TABELA</BT>
     </G>:<div style={{marginTop:14}}>
-      <div style={{marginBottom:14}}><BT onClick={()=>sConfirmReset(true)} v="red" style={{fontSize:11,padding:"8px 16px"}}>RESETAR</BT></div>
+      <div style={{marginBottom:14,display:"flex",gap:8,flexWrap:"wrap"}}>
+        <BT onClick={()=>sConfirmReset(true)} v="red" style={{fontSize:11,padding:"8px 16px"}}>RESETAR</BT>
+        <BT onClick={()=>sConfirmWipe(true)} v="gh" style={{fontSize:11,padding:"8px 16px"}}>🆕 NOVO CAMPEONATO</BT>
+      </div>
       <ConfirmDialog open={confirmReset} onCancel={()=>sConfirmReset(false)} onConfirm={()=>{up({matches:[],tournament:null});sConfirmReset(false);}} title="Resetar Campeonato?" message="Todas as partidas, placares e gols serão perdidos. Essa ação não pode ser desfeita." confirmLabel="RESETAR TUDO" icon="🗑️"/>
+      <ConfirmDialog open={confirmWipe} onCancel={()=>sConfirmWipe(false)} onConfirm={()=>{up({tournament:null,matches:[],currentMatch:null,teams:[],votes:{},bets:{},panjangoVotes:{},matchStarRatings:{}});sConfirmWipe(false);}} title="Criar novo campeonato?" message="Isso apaga o campeonato atual E os times (equipes). Os atletas cadastrados serão mantidos." confirmLabel="CRIAR NOVO" icon="🆕"/>
       {/* Generate knockout phase when group stage is complete */}
       {canGenKO&&<G style={{marginBottom:16,padding:16,border:`1px solid ${K.grn}25`,background:K.grn+"06",textAlign:"center"}}>
         <div style={{fontSize:28,marginBottom:8}}>✅</div>
         <div style={{fontFamily:fC,fontWeight:700,fontSize:13,color:K.grn,letterSpacing:"0.06em",marginBottom:4}}>FASE DE GRUPOS CONCLUÍDA!</div>
         <p style={{fontSize:11,color:K.txD,marginBottom:12}}>Top {S.tournament?.groups?Math.ceil((S.tournament.koCount||4)/2)+" de cada grupo":(S.tournament.koCount||4)+" da classificação"} avançam ao mata-mata com cruzamento.</p>
         <BT onClick={genKOFromStandings} v="grn" style={{fontSize:13,padding:"12px 28px"}}>⚔️ GERAR MATA-MATA</BT>
+      </G>}
+      {koAll.length>0&&lastKOMatches.length>1&&<G style={{marginBottom:16,padding:16,border:`1px solid ${K.gold}22`,background:K.gold+"06",textAlign:"center"}}>
+        <div style={{fontSize:26,marginBottom:8}}>{koWinnersRaw.length===2?"🏆":"⚔️"}</div>
+        <div style={{fontFamily:fC,fontWeight:700,fontSize:13,color:K.gold,letterSpacing:"0.06em",marginBottom:6}}>{koWinnersRaw.length===2?"PRONTO PARA A FINAL":"PRONTO PARA A PRÓXIMA FASE"}</div>
+        <p style={{fontSize:11,color:K.txD,marginBottom:12}}>Quando todos os jogos desta fase estiverem concluídos (e, em empate, com pênaltis), gere a próxima rodada do mata-mata.</p>
+        <BT onClick={genNextKORound} v="gold" disabled={!canGenNextKO} style={{fontSize:13,padding:"12px 28px",opacity:canGenNextKO?1:0.55,cursor:canGenNextKO?"pointer":"default"}}>
+          {koWinnersRaw.length===2?"🏆 GERAR FINAL":"⚔️ GERAR PRÓXIMA FASE"}
+        </BT>
       </G>}
       <Modal open={!!emId} onClose={()=>sEmId(null)} title="EDITAR RESULTADO">{em&&(()=>{const h=gt(em.homeTeamId),a=gt(em.awayTeamId);const ko=em.phase==="knockout",tied=eH===eA;return <div>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:14,marginBottom:16}}><div style={{textAlign:"center"}}><Badge team={h} size={36}/><div style={{fontSize:12,fontWeight:700,fontFamily:fC,marginTop:4}}>{h?.name}</div></div><div style={{display:"flex",alignItems:"center",gap:8}}><IN type="number" min="0" value={eH} onChange={e=>sEH(Math.max(0,+e.target.value))} style={{width:58,textAlign:"center",fontSize:22,fontWeight:900,fontFamily:fH,padding:"8px"}}/><span style={{color:K.gDm,fontWeight:800,fontFamily:fH,fontSize:18}}>×</span><IN type="number" min="0" value={eA} onChange={e=>sEA(Math.max(0,+e.target.value))} style={{width:58,textAlign:"center",fontSize:22,fontWeight:900,fontFamily:fH,padding:"8px"}}/></div><div style={{textAlign:"center"}}><Badge team={a} size={36}/><div style={{fontSize:12,fontWeight:700,fontFamily:fC,marginTop:4}}>{a?.name}</div></div></div>
@@ -1615,7 +1662,9 @@ function Match({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
   const[showDramaPen,sShowDramaPen]=useState(false);
   const[matchTab,sMatchTab]=useState("score");
   const[showEntrance,sShowEntrance]=useState(true); // #18 entrance animation
+  const[assistCtx,sAssistCtx]=useState(null); // {goalId, teamId, scorerId}
   const chatRef=useRef(null);const chatTimer=useRef(null);
+  const didAutoStartChatRef=useRef(false);
   // Fix #3: Absolute-time-based timer (survives background tabs)
   const startTimeRef=useRef(null);const elapsedBeforePause=useRef(0);const timerRef=useRef(null);
   useEffect(()=>{
@@ -1657,14 +1706,28 @@ function Match({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
     }else{clearInterval(chatTimer.current);}
   },[run,gk]);
 
+  useEffect(()=>{
+    if(didAutoStartChatRef.current)return;
+    if(matchTab!=="chat")return;
+    if(!run)return;
+    if(!gk||!crew.narrator)return;
+    if(aiL)return;
+    if(chatMsgs.length!==0)return;
+    didAutoStartChatRef.current=true;
+    setTimeout(()=>genChat("start"),250);
+  },[matchTab,run,gk,crew?.narrator,aiL,chatMsgs.length]);
+
   if(!match||!ht||!at)return <div style={{paddingTop:20}}><BB onClick={()=>go("tournament")} crumb="PARTIDA AO VIVO"/></div>;
   // #18 Team Entrance Animation
   if(showEntrance&&!run&&clk===0&&goals.length===0)return <TeamEntrance S={S} match={match} onStart={()=>{sShowEntrance(false);handlePlay();}}/>;
   const hg=goals.filter(g=>g.teamId===ht.id).length,ag=goals.filter(g=>g.teamId===at.id).length;
   const fm=s=>`${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
   const ko=match.phase==="knockout",tied=hg===ag;
-  const addG=(pid,tid)=>{
-    sGoals(prev=>{const ng=[...prev,{id:uid(),playerId:pid,teamId:tid,minute:Math.floor(clk/60),second:clk}];return ng;});
+  const addG=(pid,tid,opts)=>{
+    const o=opts||{};
+    const goal={id:uid(),playerId:pid,teamId:tid,minute:Math.floor(clk/60),second:clk,ownGoal:!!o.ownGoal,assistPlayerId:o.assistPlayerId??null};
+    sGoals(prev=>[...prev,goal]);
+    if(!goal.ownGoal)sAssistCtx({goalId:goal.id,teamId:tid,scorerId:pid});
     // Confetti + flash
     sShowConfetti(true);sShowGoalFlash(true);try{SFX.goal();}catch(e){}
     setTimeout(()=>sShowConfetti(false),3500);
@@ -1672,10 +1735,15 @@ function Match({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
     // Trigger goal reaction
     if(gk&&crew.narrator)setTimeout(()=>genChat("goal"),800);
     // #15 Notify other tabs
-    const bc=getBroadcastChannel();if(bc)bc.postMessage({type:"goal",player:pl.find(p=>p.id===pid)?.nickname||pl.find(p=>p.id===pid)?.name,team:tm.find(t=>t.id===tid)?.name,ts:Date.now()});
+    const bc=getBroadcastChannel();if(bc)bc.postMessage({type:"goal",player:(pl.find(p=>p.id===pid)?.nickname||pl.find(p=>p.id===pid)?.name)+(goal.ownGoal?" (GC)":"") ,team:tm.find(t=>t.id===tid)?.name,ts:Date.now()});
   };
   const finish=()=>{sRun(false);clearInterval(chatTimer.current);try{SFX.end();}catch(e){}if(ko&&tied&&!showPen){sShowDramaPen(true);return;}up({matches:mt.map(m=>m.id===match.id?{...m,homeScore:hg,awayScore:ag,goals,played:true,hPen:ko&&tied?hPen:null,aPen:ko&&tied?aPen:null}:m),currentMatch:null});go("tournament");};
   const gtp=t=>t.playerIds.map(pid=>pl.find(p=>p.id===pid)).filter(Boolean);
+  const applyAssist=(assistPlayerId)=>{
+    if(!assistCtx?.goalId){sAssistCtx(null);return;}
+    sGoals(prev=>prev.map(g=>g.id===assistCtx.goalId?{...g,assistPlayerId:assistPlayerId??null}:g));
+    sAssistCtx(null);
+  };
 
   // Colors for crew
   const crewColors={narrator:"#E8CE8B",analyst1:"#8B5CF6",analyst2:"#0EA5E9"};
@@ -1688,7 +1756,7 @@ function Match({S,up,go,REFEREE,STADIUM,BROADCASTERS}){
     const prevMsgs=chatMsgsRef.current;
     const hgN=curGoals.filter(g=>g.teamId===ht.id).length;
     const agN=curGoals.filter(g=>g.teamId===at.id).length;
-    const gl=curGoals.map(g=>{const p=pl.find(x=>x.id===g.playerId);return`${g.minute}' ${p?.nickname||p?.name}${p?.number?" (nº"+p.number+")":""} (${tm.find(t=>t.id===g.teamId)?.name})`;}).join("; ");
+    const gl=curGoals.map(g=>{const p=pl.find(x=>x.id===g.playerId);return`${g.minute}' ${p?.nickname||p?.name}${p?.number?" (nº"+p.number+")":""}${g.ownGoal?" (GC)":""} (${tm.find(t=>t.id===g.teamId)?.name})`;}).join("; ");
     const lastGoal=curGoals.length?curGoals[curGoals.length-1]:null;
     const lastScorer=lastGoal?pl.find(x=>x.id===lastGoal.playerId):null;
     const lastTeam=lastGoal?tm.find(t=>t.id===lastGoal.teamId):null;
@@ -1771,6 +1839,20 @@ REGRAS OBRIGATÓRIAS:
     <BB onClick={()=>go("tournament")} crumb="PARTIDA AO VIVO"/>
     <button onClick={()=>go("tvmode")} style={{float:"right",marginTop:-30,background:K.gold+"0D",border:`1px solid ${K.gold}25`,borderRadius:8,padding:"6px 14px",color:K.gold,cursor:"pointer",fontFamily:fC,fontWeight:700,fontSize:10,letterSpacing:"0.06em"}} aria-label="Abrir modo telão">📺 TELÃO</button>
 
+    <Modal open={!!assistCtx} onClose={()=>sAssistCtx(null)} title="ASSISTÊNCIA">{assistCtx&&(()=>{const team=tm.find(t=>t.id===assistCtx.teamId);const cand=team?team.playerIds.map(pid=>pl.find(p=>p.id===pid)).filter(p=>p&&p.id!==assistCtx.scorerId):[];return <div>
+      <p style={{fontSize:12,color:K.txD,marginBottom:12}}>Quem deu a assistência?</p>
+      <div style={{display:"grid",gap:6,marginBottom:12}}>
+        {cand.map(p=><button key={p.id} onClick={()=>applyAssist(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:10,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,cursor:"pointer",textAlign:"left"}}>
+          <div style={{width:28,height:28,borderRadius:9,overflow:"hidden",background:K.gold+"12",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fC,fontWeight:900,fontSize:12,color:K.gold}}>{(p.nickname||p.name||"?")[0]}</span>}</div>
+          <span style={{fontWeight:700,fontSize:13,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.nickname||p.name}</span>
+        </button>)}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <BT onClick={()=>applyAssist(null)} v="gh" style={{flex:1,justifyContent:"center"}}>SEM ASSISTÊNCIA</BT>
+        <BT onClick={()=>sAssistCtx(null)} v="gold" style={{flex:1,justifyContent:"center"}}>FECHAR</BT>
+      </div>
+    </div>;})()}</Modal>
+
     {/* Scoreboard — always visible, compact */}
     <G style={{marginTop:12,marginBottom:12,textAlign:"center",padding:"16px 12px",position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:`linear-gradient(90deg,${ht.color.bg},${K.gold},${at.color.bg})`}}/>
@@ -1808,15 +1890,20 @@ REGRAS OBRIGATÓRIAS:
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
         {[ht,at].map(team=><div key={team.id}>
           <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:team.color.bg,letterSpacing:"0.08em",marginBottom:6,textAlign:"center"}}>{team.name}</div>
-          <div style={{display:"grid",gap:5}}>{gtp(team).map(p=>{const pg=goals.filter(g=>g.playerId===p.id).length;
-            return <button key={p.id} onClick={()=>addG(p.id,team.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"12px 10px",borderRadius:12,border:`2px solid ${K.bd}`,background:K.sf,color:K.tx,cursor:"pointer",textAlign:"left",width:"100%",transition:"all 0.15s",backdropFilter:"blur(8px)",minHeight:52}} onMouseEnter={e=>{e.currentTarget.style.background=team.color.bg+"18";e.currentTarget.style.borderColor=team.color.bg+"45";}} onMouseLeave={e=>{e.currentTarget.style.background=K.sf;e.currentTarget.style.borderColor=K.bd;}}>
-              <div style={{width:32,height:32,borderRadius:9,overflow:"hidden",flexShrink:0,background:team.color.bg+"12",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                {p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:12,fontWeight:800,color:team.color.bg,fontFamily:fC}}>{(p.nickname||p.name)[0]}</span>}
-              </div>
-              {p.number&&<span style={{fontSize:12,fontWeight:800,color:team.color.bg,fontFamily:fC}}>{p.number}</span>}
-              <span style={{fontSize:13,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.nickname||p.name}</span>
-              {pg>0&&<span style={{background:team.color.bg,color:team.color.t,borderRadius:8,padding:"3px 9px",fontSize:12,fontWeight:900,fontFamily:fC}}>⚽{pg}</span>}
-            </button>;
+          <div style={{display:"grid",gap:5}}>{gtp(team).map(p=>{const pg=goals.filter(g=>g.playerId===p.id&&!g.ownGoal).length;const oppId=team.id===ht.id?at.id:ht.id;
+            return <div key={p.id} style={{display:"flex",gap:6}}>
+              <button onClick={()=>addG(p.id,team.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"12px 10px",borderRadius:12,border:`2px solid ${K.bd}`,background:K.sf,color:K.tx,cursor:"pointer",textAlign:"left",width:"100%",transition:"all 0.15s",backdropFilter:"blur(8px)",minHeight:52}} onMouseEnter={e=>{e.currentTarget.style.background=team.color.bg+"18";e.currentTarget.style.borderColor=team.color.bg+"45";}} onMouseLeave={e=>{e.currentTarget.style.background=K.sf;e.currentTarget.style.borderColor=K.bd;}}>
+                <div style={{width:32,height:32,borderRadius:9,overflow:"hidden",flexShrink:0,background:team.color.bg+"12",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:12,fontWeight:800,color:team.color.bg,fontFamily:fC}}>{(p.nickname||p.name)[0]}</span>}
+                </div>
+                {p.number&&<span style={{fontSize:12,fontWeight:800,color:team.color.bg,fontFamily:fC}}>{p.number}</span>}
+                <span style={{fontSize:13,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.nickname||p.name}</span>
+                {pg>0&&<span style={{background:team.color.bg,color:team.color.t,borderRadius:8,padding:"3px 9px",fontSize:12,fontWeight:900,fontFamily:fC}}>⚽{pg}</span>}
+              </button>
+              <button onClick={()=>addG(p.id,oppId,{ownGoal:true})} title="Gol contra" aria-label="Gol contra" style={{width:52,minWidth:52,borderRadius:12,border:`2px solid ${K.bd}`,background:K.red+"10",color:K.red,cursor:"pointer",fontFamily:fC,fontWeight:900,fontSize:11,letterSpacing:"0.06em",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                GC
+              </button>
+            </div>;
           })}</div>
         </div>)}
       </div>
@@ -1835,7 +1922,7 @@ REGRAS OBRIGATÓRIAS:
         {crew.analyst1&&<span style={{fontSize:10,padding:"3px 10px",borderRadius:6,background:crewColors.analyst1+"0D",border:`1px solid ${crewColors.analyst1}18`,color:crewColors.analyst1,fontFamily:fC,fontWeight:700}}>💬 {crew.analyst1.name}</span>}
         {crew.analyst2&&<span style={{fontSize:10,padding:"3px 10px",borderRadius:6,background:crewColors.analyst2+"0D",border:`1px solid ${crewColors.analyst2}18`,color:crewColors.analyst2,fontFamily:fC,fontWeight:700}}>💬 {crew.analyst2.name}</span>}
       </div>}
-      {goals.length>0?<G style={{padding:14}}><div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gDm,marginBottom:8,letterSpacing:"0.08em"}}>⚽ GOLS ({goals.length})</div>{goals.map(g=>{const p=pl.find(x=>x.id===g.playerId);const t=tm.find(x=>x.id===g.teamId);return <div key={g.id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 10px",borderRadius:8,marginBottom:4,background:K.row}}><span style={{fontFamily:fH,fontWeight:700,color:K.grn,fontSize:14,minWidth:32}}>{g.minute}'</span><span style={{fontSize:14}}>⚽</span><span style={{fontWeight:700,fontSize:13,flex:1}}>{p?.nickname||p?.name}</span><span style={{fontSize:10,color:t?.color.bg,fontWeight:700,fontFamily:fC,background:t?.color.bg+"0D",padding:"3px 8px",borderRadius:5}}>{t?.name}</span><button onClick={()=>sGoals(goals.filter(x=>x.id!==g.id))} aria-label="Remover gol" style={{background:"none",border:"none",color:K.txM,cursor:"pointer",padding:3,fontSize:12}}>✕</button></div>;})}</G>
+      {goals.length>0?<G style={{padding:14}}><div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gDm,marginBottom:8,letterSpacing:"0.08em"}}>⚽ GOLS ({goals.length})</div>{goals.map(g=>{const p=pl.find(x=>x.id===g.playerId);const t=tm.find(x=>x.id===g.teamId);const a=g.assistPlayerId?pl.find(x=>x.id===g.assistPlayerId):null;return <div key={g.id} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 10px",borderRadius:8,marginBottom:4,background:K.row}}><span style={{fontFamily:fH,fontWeight:700,color:K.grn,fontSize:14,minWidth:32}}>{g.minute}'</span><span style={{fontSize:14}}>{g.ownGoal?"🤦":"⚽"}</span><span style={{fontWeight:700,fontSize:13,flex:1}}>{p?.nickname||p?.name}{g.ownGoal&&<span style={{fontSize:11,color:K.red,fontWeight:800,marginLeft:6}}>(GC)</span>}{!g.ownGoal&&a&&<span style={{fontSize:10,color:K.txM,fontWeight:700,marginLeft:8,fontFamily:fC}}>· Assist: {a.nickname||a.name}</span>}</span><span style={{fontSize:10,color:t?.color.bg,fontWeight:700,fontFamily:fC,background:t?.color.bg+"0D",padding:"3px 8px",borderRadius:5}}>{t?.name}</span><button onClick={()=>sGoals(goals.filter(x=>x.id!==g.id))} aria-label="Remover gol" style={{background:"none",border:"none",color:K.txM,cursor:"pointer",padding:3,fontSize:12}}>✕</button></div>;})}</G>
       :<G style={{textAlign:"center",padding:30}}><span style={{fontSize:28,display:"block",marginBottom:6}}>⚽</span><p style={{color:K.txM,fontSize:12}}>Nenhum gol ainda</p></G>}
     </>}
 
@@ -1844,10 +1931,15 @@ REGRAS OBRIGATÓRIAS:
       {gk&&crew.narrator?<G style={{padding:0,overflow:"hidden"}}>
         <div style={{padding:"10px 14px",background:K.inp,borderBottom:`1px solid ${K.bd}`,display:"flex",alignItems:"center",gap:8}}>
           <div style={{width:8,height:8,borderRadius:"50%",background:run?K.grn:K.txM,animation:run?"lp 1.5s infinite":"none"}}/><span style={{fontFamily:fC,fontSize:11,fontWeight:700,color:run?K.grn:K.txM,letterSpacing:"0.08em"}}>TRANSMISSÃO {run?"AO VIVO":"PAUSADA"}</span>
-          {aiL&&<span style={{marginLeft:"auto",fontSize:10,color:"#8B5CF6",fontStyle:"italic"}}>digitando...</span>}
+          <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+            {aiL&&<span style={{fontSize:10,color:"#8B5CF6",fontStyle:"italic"}}>digitando...</span>}
+            <button onClick={handlePlay} style={{width:34,height:34,borderRadius:10,border:`1px solid ${run?K.red+"35":K.grn+"35"}`,background:run?K.red+"10":K.grn+"10",color:run?K.red:K.grn,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:14}} aria-label={run?"Pausar transmissão":"Iniciar transmissão"}>
+              {run?"⏸":"▶"}
+            </button>
+          </div>
         </div>
         <div ref={chatRef} style={{maxHeight:360,overflowY:"auto",padding:"10px 14px"}}>
-          {chatMsgs.length===0&&<div style={{textAlign:"center",padding:20,color:K.txM,fontSize:12}}>Aperte ▶ para iniciar a transmissão</div>}
+          {chatMsgs.length===0&&<div style={{textAlign:"center",padding:20,color:K.txM,fontSize:12}}>{run?"Iniciando transmissão…":"Clique em ▶ para iniciar a transmissão"}</div>}
           {chatMsgs.map(m=>{
             const c=m.role==="narrator"?crewColors.narrator:m.role==="analyst1"?crewColors.analyst1:m.role==="analyst2"?crewColors.analyst2:K.txD;
             const icon=m.role==="narrator"?"🎙️":"💬";
@@ -1915,7 +2007,7 @@ function Standings({S,go}){
 
 /* ══════════ SCORERS ══════════ */
 function Scorers({S,go}){
-  const{matches:mt,players:pl,teams:tm}=S;const allG=mt.filter(m=>m.played).flatMap(m=>m.goals||[]);const map={};allG.forEach(g=>{if(!map[g.playerId])map[g.playerId]={goals:0,teamId:g.teamId};map[g.playerId].goals++;});
+  const{matches:mt,players:pl,teams:tm}=S;const allG=mt.filter(m=>m.played).flatMap(m=>m.goals||[]).filter(g=>!g.ownGoal);const map={};allG.forEach(g=>{if(!map[g.playerId])map[g.playerId]={goals:0,teamId:g.teamId};map[g.playerId].goals++;});
   const sc=Object.entries(map).map(([pid,d])=>({player:pl.find(p=>p.id===pid),team:tm.find(t=>t.id===d.teamId),goals:d.goals})).filter(s=>s.player&&s.team).sort((a,b)=>b.goals-a.goals);
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")}/><SH icon="⚽" title="ARTILHARIA" color="#A855F7"/>
@@ -1926,6 +2018,27 @@ function Scorers({S,go}){
         <div style={{width:40,height:40,borderRadius:10,overflow:"hidden",flexShrink:0,background:s.team.color.bg+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${K.bd}`}}>{s.player.photo?<img src={s.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fH,fontSize:16,fontWeight:700,color:s.team.color.bg}}>{(s.player.nickname||s.player.name)[0]}</span>}</div>
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14}}>{s.player.nickname||s.player.name}</div><div style={{fontSize:11,color:s.team.color.bg,fontWeight:600,display:"flex",alignItems:"center",gap:3}}><Badge team={s.team} size={13}/> {s.team.name}</div></div>
         <div style={{display:"flex",alignItems:"center",gap:5,background:i===0?K.gold+"0D":K.grn+"0A",padding:"5px 14px",borderRadius:9,border:`1px solid ${i===0?K.gold+"15":K.grn+"12"}`}}><span style={{fontSize:14}}>⚽</span><span style={{fontFamily:fH,fontWeight:700,fontSize:20,color:i===0?K.gold:K.grn}}>{s.goals}</span></div>
+      </div>
+    </G>)}</div>}
+  </div>;
+}
+
+/* ══════════ ASSISTS ══════════ */
+function Assists({S,go}){
+  const{matches:mt,players:pl,teams:tm}=S;
+  const all=mt.filter(m=>m.played).flatMap(m=>m.goals||[]).filter(g=>!g.ownGoal&&g.assistPlayerId);
+  const map={};
+  all.forEach(g=>{const pid=g.assistPlayerId;if(!pid)return;if(!map[pid])map[pid]={assists:0,teamId:g.teamId};map[pid].assists++;});
+  const rk=Object.entries(map).map(([pid,d])=>({player:pl.find(p=>p.id===pid),team:tm.find(t=>t.id===d.teamId),assists:d.assists})).filter(x=>x.player&&x.team).sort((a,b)=>b.assists-a.assists);
+  return <div style={{paddingTop:20,paddingBottom:40}}>
+    <BB onClick={()=>go("home")}/><SH icon="🤝" title="ASSISTÊNCIAS" color="#14B8A6"/>
+    {!rk.length?<div style={{textAlign:"center",padding:30,color:K.txM}}>Nenhuma assistência.</div>:
+    <div style={{display:"grid",gap:6,marginTop:12}}>{rk.map((s,i)=><G key={s.player.id} style={{padding:"12px 16px",border:`1px solid ${i===0?K.gold+"18":K.bd}`,background:i===0?K.gold+"04":K.sf}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{fontFamily:fH,width:28,fontWeight:700,fontSize:15,textAlign:"center",color:i===0?K.gold:i===1?"#94A3B8":i===2?"#B45309":K.txM}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":`${i+1}º`}</div>
+        <div style={{width:40,height:40,borderRadius:10,overflow:"hidden",flexShrink:0,background:s.team.color.bg+"10",display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${K.bd}`}}>{s.player.photo?<img src={s.player.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fH,fontSize:16,fontWeight:700,color:s.team.color.bg}}>{(s.player.nickname||s.player.name)[0]}</span>}</div>
+        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14}}>{s.player.nickname||s.player.name}</div><div style={{fontSize:11,color:s.team.color.bg,fontWeight:600,display:"flex",alignItems:"center",gap:3}}><Badge team={s.team} size={13}/> {s.team.name}</div></div>
+        <div style={{display:"flex",alignItems:"center",gap:5,background:i===0?K.gold+"0D":"#14B8A60A",padding:"5px 14px",borderRadius:9,border:`1px solid ${i===0?K.gold+"15":"#14B8A615"}`}}><span style={{fontSize:14}}>🤝</span><span style={{fontFamily:fH,fontWeight:700,fontSize:20,color:i===0?K.gold:"#14B8A6"}}>{s.assists}</span></div>
       </div>
     </G>)}</div>}
   </div>;
