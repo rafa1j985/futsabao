@@ -555,30 +555,40 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
     const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
     const commentatorsList=(S.commentators||[]).map(c=>c.name).slice(0,5).join(", ")||"Galvão Bueno, Neto";
     const commentatorsForFeed=(S.commentators||[]).filter(c=>c.type==="analyst");
-    const buildPrompt=(author,commentatorPick=null)=>{
-      if(author.authorType==="reporter")return `Você é um REPÓRTER de portal esportivo. Está postando uma NOTÍCIA CURTA do pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Torneio em ${tournamentDateStr}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Estádio: ${STADIUM.name}.
-CITE pelo menos um atleta pelo nome. Pode falar do árbitro, do presidente, bastidores, críticas leves. Tom: portal esportivo, pré-jogo.
-Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+    const journalistsForFeed=S.journalists||[];
+    const buildPrompt=(author,commentatorPick=null,journalistPick=null)=>{
+      if(author.authorType==="reporter"){
+        if(journalistPick){
+          return `Você é EXATAMENTE o repórter ${journalistPick.name} (TV/rádio), com este estilo: ${journalistPick.style}.
+Você está AO VIVO no pré-torneio de FUTEBOL DE SABÃO (futsabão). Hoje é ${todayFormatted}. O torneio acontece em ${tournamentDateStr}, no estádio ${STADIUM.name}. Árbitro: ${REFEREE.name}. Presidente: Rafão. Jogadores em destaque: ${playerNames}.
+Faça UMA fala curta em primeira pessoa, como reportagem de bastidor: descreva o clima, cite PELO MENOS um atleta pelo nome ou apelido, e encerre com uma PERGUNTA forte ou provocativa para o atleta ou torcedor.
+NÃO use frases genéricas como "o pré-torneio segue a todo vapor" ou "está tudo muito animado". Não explique que é uma IA. Responda apenas a fala do repórter, sem manchete, sem título e sem aspas.`;
+        }
+        return `Você é um REPÓRTER de portal esportivo. Está postando uma NOTÍCIA CURTA do pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Torneio em ${tournamentDateStr}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Estádio: ${STADIUM.name}.
+CITE pelo menos um atleta pelo nome e, se fizer sentido, mencione o árbitro ${REFEREE.name} ou o presidente Rafão. Traga bastidor e termine com uma pergunta. NÃO use frases genéricas como "o pré-torneio segue a todo vapor".
+Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto da fala do repórter, sem aspas nem título.`;
+      }
       if(author.authorType==="comentarista"&&commentatorPick){
         const styleHint=commentatorPick.style?` CARACTERÍSTICA E ESTILO DESTE COMENTARISTA (OBRIGATÓRIO seguir): ${commentatorPick.style}.`:"";
-        return `Você é EXATAMENTE o comentarista ${commentatorPick.name} em uma transmissão esportiva. Está postando uma fala de PRÉ-JOGO no feed do Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros na transmissão: ${commentatorsList}.${styleHint}
-A fala deve ser CARICATA, no estilo único desse comentarista: opinião forte, provocação, humor ou análise característica. Nada genérico como "o pré-torneio segue a todo vapor". CITE jogadores pelo nome. Pode mencionar o árbitro, clima, expectativa, rivalidades, polêmicas de pré-jogo.
-Uma ou duas frases curtas (máx 200 caracteres), primeira pessoa ou como narração do comentarista. Responda APENAS o texto da fala, sem aspas nem título.`;
+        return `Você é EXATAMENTE o comentarista ${commentatorPick.name} em uma transmissão esportiva, com este estilo: ${commentatorPick.style}.
+Você está comentando o PRÉ-JOGO do Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros na transmissão: ${commentatorsList}.${styleHint}
+A fala deve ser CARICATA e no seu JEITO ÚNICO: opinião forte, corneta, humor ou análise marcante. CITE pelo menos um atleta pelo nome ou apelido e, se fizer sentido, o árbitro ${REFEREE.name} ou o presidente Rafão. Termine com uma PERGUNTA ou PROVOCAÇÃO, como nos debates esportivos.
+NÃO use frases genéricas como "o pré-torneio segue a todo vapor" ou "vamos ver o que acontece". Responda APENAS a fala do comentarista (uma ou duas frases curtas, máx 200 caracteres), sem explicações extras, sem título e sem aspas.`;
       }
       if(author.authorType==="comentarista")return `Você é um COMENTARISTA de transmissão. Está postando uma fala de PRÉ-JOGO sobre o Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros comentaristas: ${commentatorsList}.
-CITE jogadores pelo nome. Tom CARICATO e com opinião forte — nada genérico. Pode mencionar o árbitro, clima de transmissão, expectativa.
-Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+CITE jogadores pelo nome. Tom CARICATO e com opinião forte — nada genérico. Pode mencionar o árbitro, clima de transmissão, expectativa. Termine com uma pequena provocação ou pergunta.
+NÃO repita frases prontas como "o pré-torneio segue a todo vapor". Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto da fala, sem aspas nem título.`;
       if(author.authorType==="cartola")return `Você é um CARTOLA (dirigente) CARICATO. Postando recado no pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
-CITE jogadores pelo nome. Pode falar do árbitro, do presidente, dar bronca, promessas absurdas. Tom: autoritário e zueiro.
+CITE jogadores pelo nome. Pode falar do árbitro, do presidente, dar bronca, promessas absurdas. Tom: autoritário e zueiro. Evite frases genéricas.
 Uma ou duas frases curtas (máx 180 caracteres), primeira pessoa. Responda APENAS o texto, sem aspas nem título.`;
       if(author.authorType==="torcedor")return `Você é o TORCEDOR CORNETEIRO do Futsabão (futebol de sabão). Postando corneta de pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
-CITE jogadores pelo nome. Pode zoar o árbitro, o presidente, provocar. Tom: arquibancada, zoeira.
+CITE jogadores pelo nome. Pode zoar o árbitro, o presidente, provocar. Tom: arquibancada, zoeira. Evite mensagens vazias; traga uma crítica ou piada específica.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
       if(author.authorType==="presidente")return `Você é o PRESIDENTE (Rafão) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
-CITE atletas pelo nome. Pode falar do árbitro, dar declaração, crítica leve. Tom: presidente de federação, primeiro pessoa.
+CITE atletas pelo nome. Pode falar do árbitro, dar declaração, crítica leve. Tom: presidente de federação, primeira pessoa. Evite frases genéricas.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
       return `Você é o ÁRBITRO (Rodolfo Seifert) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Presidente Rafão também está na organização.
-CITE atletas pelo nome se fizer sentido. Pode falar do presidente, avisar que vai apitar firme, clima de pré-torneio. Tom: árbitro, primeira pessoa.
+CITE atletas pelo nome se fizer sentido. Pode falar do presidente, avisar que vai apitar firme, clima de pré-torneio. Tom: árbitro, primeira pessoa. Evite frases neutras; traga uma posição clara.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
     };
     (async()=>{
@@ -588,13 +598,21 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         const author=FEED_AUTHORS[Math.floor(Math.random()*FEED_AUTHORS.length)];
         let authorLabel=author.authorLabel;
         let commentatorPick=null;
+        let journalistPick=null;
         if(author.authorType==="comentarista"&&commentatorsForFeed.length>0){
           commentatorPick=commentatorsForFeed[Math.floor(Math.random()*commentatorsForFeed.length)];
           authorLabel=commentatorPick.name;
         }
-        const prompt=buildPrompt(author,commentatorPick);
+        if(author.authorType==="reporter"&&journalistsForFeed.length>0){
+          journalistPick=journalistsForFeed[Math.floor(Math.random()*journalistsForFeed.length)];
+          authorLabel=journalistPick.name;
+        }
+        const prompt=buildPrompt(author,commentatorPick,journalistPick);
         const raw=await callGemini(prompt,S.geminiKey);
-        const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200)||(author.authorType==="comentarista"?"Sem previsão de clima para o jogo.":"O pré-torneio segue a todo vapor!");
+        let text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200);
+        if(!text){
+          text=author.authorType==="comentarista"?"Comentário ácido sobre o pré-torneio não gerado.":"Atualização rápida do pré-torneio não gerada.";
+        }
         accTime+=TWO_H;
         newPosts.push({id:uid(),authorType:author.authorType,authorLabel,text,createdAt:new Date(accTime).toISOString()});
       }
