@@ -439,6 +439,7 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
   const[collapseClassificacao,sCollapseClassificacao]=useState(false);
   const[collapseProximas,sCollapseProximas]=useState(false);
   const[collapseResultados,sCollapseResultados]=useState(false);
+  const[feedScheduleTick,sFeedScheduleTick]=useState(0);
   const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
   useEffect(()=>{
     if(!S.geminiKey||dailyHeadlineGeneratingRef.current)return;
@@ -533,47 +534,60 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
     if(!S.geminiKey||hasTournament||feedGeneratingRef.current)return;
     const feed=S.preTorneioFeed||[];
     const feedToday=feed.filter(p=>p.createdAt&&p.createdAt.startsWith(today));
-    if(feedToday.length>=8)return;
+    if(feedToday.length>=12)return;
+    const TWO_H=2*60*60*1000;
+    const startOfToday=new Date(today.replace(/-/g,"/")).getTime();
     const lastAt=S.lastFeedGenerationAt;
-    if(lastAt&&(Date.now()-lastAt)<45*60*1000)return;
+    const base=lastAt&&lastAt>=startOfToday?lastAt:startOfToday;
+    const now=Date.now();
+    const slotsPassed=Math.floor((now-base)/TWO_H);
+    let slotsToDo=Math.min(slotsPassed,12-feedToday.length,5);
+    if(slotsToDo<=0)return;
     feedGeneratingRef.current=true;
-    const author=FEED_AUTHORS[Math.floor(Math.random()*FEED_AUTHORS.length)];
     const pl=S.players||[];
     const playerNames=pl.map(p=>p.nickname||p.name).filter(Boolean).slice(0,8).join(", ")||"atletas";
     const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
     const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
     const commentatorsList=(S.commentators||[]).map(c=>c.name).slice(0,5).join(", ")||"Galvão Bueno, Neto";
-    let prompt="";
-    if(author.authorType==="reporter"){
-      prompt=`Você é um REPÓRTER de portal esportivo. Está postando uma NOTÍCIA CURTA do pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Torneio em ${tournamentDateStr}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Estádio: ${STADIUM.name}.
+    const buildPrompt=(author)=>{
+      if(author.authorType==="reporter")return `Você é um REPÓRTER de portal esportivo. Está postando uma NOTÍCIA CURTA do pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Torneio em ${tournamentDateStr}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Estádio: ${STADIUM.name}.
 CITE pelo menos um atleta pelo nome. Pode falar do árbitro, do presidente, bastidores, críticas leves. Tom: portal esportivo, pré-jogo.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
-    }else if(author.authorType==="comentarista"){
-      prompt=`Você é um COMENTARISTA de transmissão. Está postando uma fala de PRÉ-JOGO sobre o Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros comentaristas: ${commentatorsList}.
+      if(author.authorType==="comentarista")return `Você é um COMENTARISTA de transmissão. Está postando uma fala de PRÉ-JOGO sobre o Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros comentaristas: ${commentatorsList}.
 CITE jogadores pelo nome. Pode mencionar o árbitro, clima de transmissão, expectativa.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
-    }else if(author.authorType==="cartola"){
-      prompt=`Você é um CARTOLA (dirigente) CARICATO. Postando recado no pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
+      if(author.authorType==="cartola")return `Você é um CARTOLA (dirigente) CARICATO. Postando recado no pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
 CITE jogadores pelo nome. Pode falar do árbitro, do presidente, dar bronca, promessas absurdas. Tom: autoritário e zueiro.
 Uma ou duas frases curtas (máx 180 caracteres), primeira pessoa. Responda APENAS o texto, sem aspas nem título.`;
-    }else if(author.authorType==="torcedor"){
-      prompt=`Você é o TORCEDOR CORNETEIRO do Futsabão (futebol de sabão). Postando corneta de pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
+      if(author.authorType==="torcedor")return `Você é o TORCEDOR CORNETEIRO do Futsabão (futebol de sabão). Postando corneta de pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
 CITE jogadores pelo nome. Pode zoar o árbitro, o presidente, provocar. Tom: arquibancada, zoeira.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
-    }else if(author.authorType==="presidente"){
-      prompt=`Você é o PRESIDENTE (Rafão) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
+      if(author.authorType==="presidente")return `Você é o PRESIDENTE (Rafão) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
 CITE atletas pelo nome. Pode falar do árbitro, dar declaração, crítica leve. Tom: presidente de federação, primeiro pessoa.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
-    }else{
-      prompt=`Você é o ÁRBITRO (Rodolfo Seifert) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Presidente Rafão também está na organização.
+      return `Você é o ÁRBITRO (Rodolfo Seifert) do Futsabão. Postando declaração curta no pré-torneio. Jogadores: ${playerNames}. Presidente Rafão também está na organização.
 CITE atletas pelo nome se fizer sentido. Pode falar do presidente, avisar que vai apitar firme, clima de pré-torneio. Tom: árbitro, primeira pessoa.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
-    }
-    callGemini(prompt,S.geminiKey).then(raw=>{
-      const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200)||"O pré-torneio segue a todo vapor!";
-      up({preTorneioFeed:[...(S.preTorneioFeed||[]),{id:uid(),authorType:author.authorType,authorLabel:author.authorLabel,text,createdAt:new Date().toISOString()}],lastFeedGenerationAt:Date.now()});
-    }).finally(()=>{feedGeneratingRef.current=false;});
-  },[S.geminiKey,S.preTorneioFeed,S.lastFeedGenerationAt,today,hasTournament,S.players,S.commentators,S.tournamentStartAt]);
+    };
+    (async()=>{
+      const newPosts=[];
+      let accTime=base;
+      for(let i=0;i<slotsToDo;i++){
+        const author=FEED_AUTHORS[Math.floor(Math.random()*FEED_AUTHORS.length)];
+        const prompt=buildPrompt(author);
+        const raw=await callGemini(prompt,S.geminiKey);
+        const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200)||"O pré-torneio segue a todo vapor!";
+        accTime+=TWO_H;
+        newPosts.push({id:uid(),authorType:author.authorType,authorLabel:author.authorLabel,text,createdAt:new Date(accTime).toISOString()});
+      }
+      up({preTorneioFeed:[...(S.preTorneioFeed||[]),...newPosts],lastFeedGenerationAt:accTime});
+    })().finally(()=>{feedGeneratingRef.current=false;});
+  },[S.geminiKey,S.preTorneioFeed,S.lastFeedGenerationAt,today,hasTournament,S.players,S.commentators,S.tournamentStartAt,feedScheduleTick]);
+  useEffect(()=>{
+    if(hasTournament)return;
+    const t=setInterval(()=>sFeedScheduleTick(Date.now()),2*60*60*1000);
+    return()=>clearInterval(t);
+  },[hasTournament]);
   useEffect(()=>{const bc=getBroadcastChannel();if(!bc)return;const h=(e)=>{if(e.data?.type==="goal"){sGoalNotif({player:e.data.player,team:e.data.team});try{navigator.vibrate?.([200,100,200]);}catch(e){}setTimeout(()=>sGoalNotif(null),4000);}};bc.addEventListener("message",h);return()=>bc.removeEventListener("message",h);},[]);
   const{teams:tm,matches:mt,players:pl}=S;
   const gt=id=>tm.find(t=>t.id===id);
