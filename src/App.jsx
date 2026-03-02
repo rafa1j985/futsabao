@@ -42,7 +42,12 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
-const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{},preTorneioFeed:[],lastFeedGenerationAt:null};
+const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{},preTorneioFeed:[],lastFeedGenerationAt:null,matchStarRatings:{}};
+function getPlayerStarRating(playerId,matchStarRatings){
+  const arr=[];
+  Object.values(matchStarRatings||{}).forEach(list=>list.forEach(r=>{if(r.playerId===playerId)arr.push(r.stars);}));
+  return arr.length?Math.round((arr.reduce((a,b)=>a+b,0)/arr.length)*10)/10:null;
+}
 
 // Cloud save — debounced, strips transient fields. Returns { ok, error? } for UI feedback.
 const TRANSIENT_KEYS=["screen","currentMatch","viewPlayerId"];
@@ -549,12 +554,19 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
     const todayFormatted=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
     const tournamentDateStr=S.tournamentStartAt?new Date(S.tournamentStartAt).toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"}):"07 de março de 2026";
     const commentatorsList=(S.commentators||[]).map(c=>c.name).slice(0,5).join(", ")||"Galvão Bueno, Neto";
-    const buildPrompt=(author)=>{
+    const commentatorsForFeed=(S.commentators||[]).filter(c=>c.type==="analyst");
+    const buildPrompt=(author,commentatorPick=null)=>{
       if(author.authorType==="reporter")return `Você é um REPÓRTER de portal esportivo. Está postando uma NOTÍCIA CURTA do pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Torneio em ${tournamentDateStr}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Estádio: ${STADIUM.name}.
 CITE pelo menos um atleta pelo nome. Pode falar do árbitro, do presidente, bastidores, críticas leves. Tom: portal esportivo, pré-jogo.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
+      if(author.authorType==="comentarista"&&commentatorPick){
+        const styleHint=commentatorPick.style?` CARACTERÍSTICA E ESTILO DESTE COMENTARISTA (OBRIGATÓRIO seguir): ${commentatorPick.style}.`:"";
+        return `Você é EXATAMENTE o comentarista ${commentatorPick.name} em uma transmissão esportiva. Está postando uma fala de PRÉ-JOGO no feed do Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros na transmissão: ${commentatorsList}.${styleHint}
+A fala deve ser CARICATA, no estilo único desse comentarista: opinião forte, provocação, humor ou análise característica. Nada genérico como "o pré-torneio segue a todo vapor". CITE jogadores pelo nome. Pode mencionar o árbitro, clima, expectativa, rivalidades, polêmicas de pré-jogo.
+Uma ou duas frases curtas (máx 200 caracteres), primeira pessoa ou como narração do comentarista. Responda APENAS o texto da fala, sem aspas nem título.`;
+      }
       if(author.authorType==="comentarista")return `Você é um COMENTARISTA de transmissão. Está postando uma fala de PRÉ-JOGO sobre o Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}. Outros comentaristas: ${commentatorsList}.
-CITE jogadores pelo nome. Pode mencionar o árbitro, clima de transmissão, expectativa.
+CITE jogadores pelo nome. Tom CARICATO e com opinião forte — nada genérico. Pode mencionar o árbitro, clima de transmissão, expectativa.
 Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem aspas nem título.`;
       if(author.authorType==="cartola")return `Você é um CARTOLA (dirigente) CARICATO. Postando recado no pré-torneio Futsabão (futebol de sabão). Hoje é ${todayFormatted}. Jogadores: ${playerNames}. Árbitro: ${REFEREE.name}.
 CITE jogadores pelo nome. Pode falar do árbitro, do presidente, dar bronca, promessas absurdas. Tom: autoritário e zueiro.
@@ -574,11 +586,17 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
       let accTime=base;
       for(let i=0;i<slotsToDo;i++){
         const author=FEED_AUTHORS[Math.floor(Math.random()*FEED_AUTHORS.length)];
-        const prompt=buildPrompt(author);
+        let authorLabel=author.authorLabel;
+        let commentatorPick=null;
+        if(author.authorType==="comentarista"&&commentatorsForFeed.length>0){
+          commentatorPick=commentatorsForFeed[Math.floor(Math.random()*commentatorsForFeed.length)];
+          authorLabel=commentatorPick.name;
+        }
+        const prompt=buildPrompt(author,commentatorPick);
         const raw=await callGemini(prompt,S.geminiKey);
-        const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200)||"O pré-torneio segue a todo vapor!";
+        const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200)||(author.authorType==="comentarista"?"Sem previsão de clima para o jogo.":"O pré-torneio segue a todo vapor!");
         accTime+=TWO_H;
-        newPosts.push({id:uid(),authorType:author.authorType,authorLabel:author.authorLabel,text,createdAt:new Date(accTime).toISOString()});
+        newPosts.push({id:uid(),authorType:author.authorType,authorLabel,text,createdAt:new Date(accTime).toISOString()});
       }
       up({preTorneioFeed:[...(S.preTorneioFeed||[]),...newPosts],lastFeedGenerationAt:accTime});
     })().finally(()=>{feedGeneratingRef.current=false;});
@@ -756,24 +774,23 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         const outlets=BROADCASTERS?.length?BROADCASTERS:[{id:"b1",name:"Cazé TV",color:"#FF4654"}];
         const outlet=outlets[Math.floor(Math.random()*outlets.length)];
         const playerName=loggedPlayer.name||"Atleta";
+        const dateStr=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long"});
         let headline=`${playerName} responde sobre o torneio`;
-        let body=`${outlet.name}: ${journalist.name} perguntou a ${playerName}: "${question}" Resposta: ${ans.slice(0,250)}`;
+        let body=`Durante uma entrevista neste dia ${dateStr}, o atleta ${playerName} falou sobre o torneio de futsabão e respondeu com bom humor quando o jornalista ${journalist.name} da ${outlet.name} o questionou sobre "${question}". ${playerName} foi direto: "${ans.slice(0,200)}".`;
         const gk=S.geminiKey;
         if(gk){
           sGeneratingNews(true);
-          const prompt=`Você é um editor SENSACIONALISTA e FOFOQUEIRO do veículo "${outlet.name}". O jornalista ${journalist.name} entrevistou o atleta ${playerName} no Futsabão (campeonato de futebol de sabão).
+          const prompt=`Você é um editor de portal esportivo. O jornalista ${journalist.name} (${outlet.name}) entrevistou o atleta ${playerName} no Futsabão (campeonato de futebol de sabão).
 Pergunta: "${question}". Resposta do atleta: "${ans.slice(0,250)}".
 
-ESTILO OBRIGATÓRIO:
-- Pode DISTORCER a resposta do atleta para criar polêmica (ex: se ele disse "tô bem", publicar "Atleta dá a entender que não confia nos companheiros").
-- Pode INVENTAR detalhes, exagerar absurdamente, criar manchete clickbait.
-- Pode sugerir que o atleta disse algo que não disse (fake news engraçada).
-- Tom: portal de fofoca esportiva, sensacionalismo puro, zueira máxima.
-- Tudo no espírito de zoeira entre amigos.
+OBRIGATÓRIO: Gere uma MINI-NOTÍCIA (2 ou 3 frases) no formato de reportagem, NÃO no formato "Fulano perguntou a Ciclano: ... Resposta: ...".
+Exemplo de formato correto: "Durante uma entrevista neste dia 01 de março, o atleta Felpis falou sobre o torneio de futsabão e respondeu com bom humor quando o jornalista Mauro Naves da ESPN o questionou sobre 'Quem é o jogador mais difícil de marcar?'. Felpis foi direto: 'Não tem.'"
+- Use o dia e mês atuais, o nome do atleta, do jornalista e do veículo. Inclua a pergunta entre aspas e a resposta do atleta entre aspas no final.
+- Pode dar um toque sensacionalista ou de zueira leve, mas mantenha o formato de notícia curta.
 
 Gere em exatamente 2 linhas:
-Primeira linha: manchete curta SENSACIONALISTA e clickbait (máx 60 caracteres).
-Segunda linha: texto da mini-notícia em 2 ou 3 frases com detalhes inventados e zueiros.
+Linha 1: manchete curta (máx 60 caracteres).
+Linha 2: texto da mini-notícia no formato de reportagem acima (máx 350 caracteres).
 Responda APENAS com essas duas linhas, sem título extra.`;
           const raw=await callGemini(prompt,gk);
           if(raw){
@@ -1306,7 +1323,7 @@ function Players({S,up,go}){
         <div style={{width:44,height:44,borderRadius:11,overflow:"hidden",background:K.gold+"08",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`1px solid ${K.bd}`}}>{p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontFamily:fH,fontSize:18,fontWeight:700,color:K.gold+"35"}}>{(p.nickname||p.name)[0]}</span>}</div>
         {p.number&&<div style={{width:30,height:30,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",background:K.acc+"15",color:K.accL,fontWeight:800,fontSize:13,fontFamily:fC,flexShrink:0}}>{p.number}</div>}
         <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.nickname||p.name}</div><div style={{fontSize:11,color:K.txD}}>{[p.position,p.birthYear&&`${new Date().getFullYear()-p.birthYear}a`].filter(Boolean).join(" · ")}</div></div>
-        {p.rating>0&&<Stars value={p.rating} ro sz={13}/>}
+        {(getPlayerStarRating(p.id,S.matchStarRatings)??p.rating??0)>0&&<Stars value={getPlayerStarRating(p.id,S.matchStarRatings)??p.rating??0} ro sz={13}/>}
         <button onClick={(e)=>{e.stopPropagation();sShowQR(p.id);}} aria-label="QR Code" style={{background:"none",border:"none",color:K.txD,cursor:"pointer",padding:4,fontSize:13}}>📱</button>
         <button onClick={(e)=>{e.stopPropagation();up({viewPlayerId:p.id});go("playerstats");}} aria-label="Ver estatísticas" style={{background:"none",border:"none",color:K.blu,cursor:"pointer",padding:4,fontSize:13}}>📊</button>
         <button onClick={()=>sEId(p.id)} aria-label="Editar jogador" style={{background:"none",border:"none",color:K.txD,cursor:"pointer",padding:4,fontSize:13}}>✏️</button>
@@ -1449,7 +1466,7 @@ function Teams({S,up,go}){
   const create=()=>{const nt=[];for(let i=0;i<num;i++){const ex=tm[i];nt.push({id:ex?.id||uid(),name:ex?.name||`Time ${i+1}`,color:TC[i%TC.length],playerIds:ex?.playerIds||[],logo:ex?.logo||null});}up({teams:nt.slice(0,num)});};
   const draft=()=>{const s=shuf(pl.map(p=>p.id));const nt=tm.map(t=>({...t,playerIds:[]}));s.forEach((p,i)=>nt[i%nt.length].playerIds.push(p));up({teams:nt});};
   const selDraft=()=>{if(!stars.length)return;const nt=tm.map(t=>({...t,playerIds:[]}));shuf(stars).forEach((p,i)=>nt[i%nt.length].playerIds.push(p));shuf(pl.filter(p=>!stars.includes(p.id)).map(p=>p.id)).forEach(p=>{[...nt].sort((a,b)=>a.playerIds.length-b.playerIds.length)[0].playerIds.push(p);});up({teams:nt});sSt([]);};
-  const ratDraft=()=>{const sorted=[...pl].sort((a,b)=>(b.rating||0)-(a.rating||0));const tc=Math.min(tm.length,sorted.filter(p=>p.rating>=4).length)||tm.length;const top=sorted.slice(0,tc).map(p=>p.id);const nt=tm.map(t=>({...t,playerIds:[]}));shuf(top).forEach((p,i)=>nt[i%nt.length].playerIds.push(p));shuf(sorted.filter(p=>!top.includes(p.id)).map(p=>p.id)).forEach(p=>{[...nt].sort((a,b)=>a.playerIds.length-b.playerIds.length)[0].playerIds.push(p);});up({teams:nt});};
+  const ratDraft=()=>{const getR=(x)=>getPlayerStarRating(x.id,S.matchStarRatings)??x.rating??0;const sorted=[...pl].sort((a,b)=>getR(b)-getR(a));const tc=Math.min(tm.length,sorted.filter(p=>getR(p)>=4).length)||tm.length;const top=sorted.slice(0,tc).map(p=>p.id);const nt=tm.map(t=>({...t,playerIds:[]}));shuf(top).forEach((p,i)=>nt[i%nt.length].playerIds.push(p));shuf(sorted.filter(p=>!top.includes(p.id)).map(p=>p.id)).forEach(p=>{[...nt].sort((a,b)=>a.playerIds.length-b.playerIds.length)[0].playerIds.push(p);});up({teams:nt});};
   const uT=(id,u)=>up({teams:tm.map(t=>t.id===id?{...t,...u}:t)});
   const hLg=async(tid,e)=>{const f=e.target.files?.[0];if(f){const r=new FileReader();r.onload=async ev=>{const compressed=await compressPhoto(ev.target.result,150,0.7);uT(tid,{logo:compressed});};r.readAsDataURL(f);}};
   const addTo=(pid,tid)=>{up({teams:tm.map(t=>({...t,playerIds:t.id===tid?[...t.playerIds,pid]:t.playerIds.filter(x=>x!==pid)}))});sATo(null);};
@@ -1916,7 +1933,7 @@ function Scorers({S,go}){
 
 /* ══════════ MATCH VIEW (Fan Chat + MVP Voting) ══════════ */
 function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
-  const{currentMatch:cm,matches:mt,teams:tm,players:pl,fanChat,votes,panjangoVotes:pjVotes}=S;
+  const{currentMatch:cm,matches:mt,teams:tm,players:pl,fanChat,votes,panjangoVotes:pjVotes,matchStarRatings}=S;
   const match=mt.find(m=>m.id===cm);const gt=id=>tm.find(t=>t.id===id);
   const[msg,sMsg]=useState("");const[tab,sTab]=useState("chat");const[mvpId,sMvpId]=useState("");const[voteDone,sVoteDone]=useState(false);
   const[pjId,sPjId]=useState("");const[pjDone,sPjDone]=useState(false);
@@ -1963,7 +1980,7 @@ function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
     </G>
     {/* Tabs with counts */}
     <div style={{display:"flex",gap:6,marginBottom:14}}>
-      {[{id:"chat",l:"💬 CHAT",c:"#8B5CF6",cnt:msgs.length},{id:"mvp",l:"🏆 MVP",c:K.gold,cnt:matchVotes.length},{id:"panjango",l:"🤦 PANJANGO",c:"#E74C3C",cnt:matchPjVotes.length},{id:"photos",l:"📸 FOTOS",c:K.grn,cnt:(S.photos[match.id]||[]).length}].map(t=>
+      {[{id:"chat",l:"💬 CHAT",c:"#8B5CF6",cnt:msgs.length},{id:"mvp",l:"🏆 MVP",c:K.gold,cnt:matchVotes.length},{id:"panjango",l:"🤦 PANJANGO",c:"#E74C3C",cnt:matchPjVotes.length},{id:"photos",l:"📸 FOTOS",c:K.grn,cnt:(S.photos[match.id]||[]).length},...(match.played?[{id:"notas",l:"⭐ NOTAS",c:"#EAB308",cnt:((matchStarRatings||{})[match.id]||[]).filter(r=>r.voterId===loggedPlayer?.id).length}]:[])].map(t=>
         <button key={t.id} onClick={()=>sTab(t.id)} style={{flex:1,padding:"10px 8px",borderRadius:10,fontFamily:fC,fontWeight:700,fontSize:12,border:`1px solid ${tab===t.id?t.c+"35":K.bd}`,background:tab===t.id?t.c+"10":"transparent",color:tab===t.id?t.c:K.txD,cursor:"pointer",position:"relative"}}>
           {t.l}
           {t.cnt>0&&<span style={{marginLeft:4,fontSize:9,padding:"1px 5px",borderRadius:8,background:t.c+"18",color:t.c}}>{t.cnt}</span>}
@@ -1997,8 +2014,8 @@ function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
         {/* Vote form — show FIRST if player hasn't voted yet */}
         {loggedPlayer&&!hasVoted&&!voteDone&&<G style={{padding:20,marginBottom:14,border:`1px solid ${K.gold}20`}}>
           <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,marginBottom:4,letterSpacing:"0.08em"}}>🏆 VOTE NO MVP DA PARTIDA</div>
-          <p style={{fontSize:11,color:K.txD,marginBottom:12}}>Quem foi o melhor em campo? Seu voto é secreto e único.</p>
-          {[ht,at].filter(Boolean).map(team=>{const tPlayers=allPlayers.filter(p=>team.playerIds.includes(p.id));return tPlayers.length?<div key={team.id} style={{marginBottom:10}}>
+          <p style={{fontSize:11,color:K.txD,marginBottom:12}}>Quem foi o melhor em campo? Seu voto é secreto e único. Você não pode votar em si mesmo.</p>
+          {[ht,at].filter(Boolean).map(team=>{const tPlayers=(allPlayers.filter(p=>team.playerIds.includes(p.id))).filter(p=>p.id!==loggedPlayer?.id);return tPlayers.length?<div key={team.id} style={{marginBottom:10}}>
             <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:team.color.bg,letterSpacing:"0.06em",marginBottom:5}}>{team.name}</div>
             <div style={{display:"grid",gap:3}}>{tPlayers.map(p=>{const pGoals=(match.goals||[]).filter(g=>g.playerId===p.id).length;
               return <button key={p.id} onClick={()=>sMvpId(p.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:9,border:`1px solid ${mvpId===p.id?K.gold+"50":K.bd}`,background:mvpId===p.id?K.gold+"0D":"transparent",cursor:"pointer",width:"100%",textAlign:"left",transition:"all 0.15s",color:K.tx}}>
@@ -2174,6 +2191,33 @@ function MatchView({S,up,go,loggedPlayer,STADIUM,REFEREE}){
           <p style={{color:K.txD,fontSize:13}}>Nenhum voto ainda</p>
           <p style={{color:K.txM,fontSize:11,marginTop:4}}>Seja o primeiro a escolher o Panjango!</p>
         </G>}
+      </>}
+    </div>}
+
+    {tab==="notas"&&match.played&&<div>
+      {!loggedPlayer?<G style={{textAlign:"center",padding:24}}>
+        <span style={{fontSize:20}}>🔒</span><p style={{color:K.txD,fontSize:12,marginTop:8}}>Faça login na "Área do Atleta" para avaliar os atletas</p>
+      </G>:<>
+        <G style={{padding:20,marginBottom:14,border:"1px solid #EAB30825"}}>
+          <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#EAB308",marginBottom:4,letterSpacing:"0.08em"}}>⭐ AVALIE OS ATLETAS DA PARTIDA</div>
+          <p style={{fontSize:11,color:K.txD,marginBottom:14}}>Dê de 1 a 5 estrelas para cada jogador que atuou. A média dessas notas será a nota do atleta. Você não pode se avaliar.</p>
+          {[ht,at].filter(Boolean).map(team=>{const rateable=allPlayers.filter(p=>team.playerIds.includes(p.id)&&p.id!==loggedPlayer?.id);return rateable.length?<div key={team.id} style={{marginBottom:16}}>
+            <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:team.color.bg,letterSpacing:"0.06em",marginBottom:8}}>{team.name}</div>
+            <div style={{display:"grid",gap:8}}>{rateable.map(p=>{
+              const matchRatings=(matchStarRatings||{})[match.id]||[];
+              const myRating=matchRatings.find(r=>r.voterId===loggedPlayer.id&&r.playerId===p.id);
+              const setStars=(stars)=>{const arr=matchRatings.filter(r=>!(r.voterId===loggedPlayer.id&&r.playerId===p.id));arr.push({voterId:loggedPlayer.id,playerId:p.id,stars});up({matchStarRatings:{...(matchStarRatings||{}),[match.id]:arr}});};
+              return <div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:`1px solid ${K.bd}`,background:K.sf}}>
+                <div style={{width:32,height:32,borderRadius:8,overflow:"hidden",background:team.color.bg+"15",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {p.photo?<img src={p.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:11,fontWeight:800,color:team.color.bg,fontFamily:fC}}>{(p.nickname||p.name)[0]}</span>}
+                </div>
+                <div style={{flex:1,minWidth:0}}><span style={{fontWeight:600,fontSize:13}}>{p.nickname||p.name}</span>{p.number&&<span style={{fontSize:10,color:K.txD,marginLeft:6}}>#{p.number}</span>}</div>
+                <Stars value={myRating?.stars||0} onChange={setStars} sz={20}/>
+              </div>;
+            })}</div>
+          </div>:null;})}
+        </G>
+        {allPlayers.filter(p=>p.id!==loggedPlayer?.id).length===0&&<p style={{fontSize:12,color:K.txD,textAlign:"center",padding:20}}>Apenas você jogou nesta partida; não há outros atletas para avaliar.</p>}
       </>}
     </div>}
 
@@ -2505,12 +2549,13 @@ function QRCode({data,size=200}){
 
 /* ══════════ PLAYER STATS (#17) ══════════ */
 function PlayerStats({S,go,playerId}){
-  const{players:pl,matches:mt,teams:tm,votes}=S;
+  const{players:pl,matches:mt,teams:tm,votes,matchStarRatings}=S;
   const p=pl.find(x=>x.id===playerId);if(!p)return null;
   const team=tm.find(t=>t.playerIds?.includes(p.id));
   const played=mt.filter(m=>m.played);
   const matchesPlayed=played.filter(m=>{const t=tm.find(t=>t.playerIds?.includes(p.id));return t&&(m.homeTeamId===t.id||m.awayTeamId===t.id);});
   const totalGoals=played.reduce((sum,m)=>(m.goals||[]).filter(g=>g.playerId===p.id).length+sum,0);
+  const avgRating=getPlayerStarRating(p.id,matchStarRatings);
   let mvpCount=0;played.forEach(m=>{const mv=votes[m.id]||[];const t={};mv.forEach(v=>{t[v.mvpId]=(t[v.mvpId]||0)+1;});const best=Object.entries(t).sort((a,b)=>b[1]-a[1])[0];if(best&&best[0]===p.id)mvpCount++;});
   let panjangoCount=0;const pjVotesAll=S.panjangoVotes||{};played.forEach(m=>{const pv=pjVotesAll[m.id]||[];const t={};pv.forEach(v=>{t[v.panjangoId]=(t[v.panjangoId]||0)+1;});const best=Object.entries(t).sort((a,b)=>b[1]-a[1])[0];if(best&&best[0]===p.id)panjangoCount++;});
   const goalsPerMatch=matchesPlayed.length?((totalGoals/matchesPlayed.length).toFixed(1)):"-";
@@ -2538,11 +2583,12 @@ function PlayerStats({S,go,playerId}){
     </G>
     {/* Stats Grid */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:14}}>
-      {[{v:matchesPlayed.length,l:"JOGOS",c:K.blu},{v:totalGoals,l:"GOLS",c:K.grn},{v:mvpCount,l:"MVPs",c:K.gold},{v:panjangoCount,l:"PANJANGO",c:"#E74C3C"},{v:goalsPerMatch,l:"MÉDIA",c:K.accL}].map(s=><G key={s.l} style={{padding:14,textAlign:"center"}}>
+      {[{v:matchesPlayed.length,l:"JOGOS",c:K.blu},{v:totalGoals,l:"GOLS",c:K.grn},{v:mvpCount,l:"MVPs",c:K.gold},{v:panjangoCount,l:"PANJANGO",c:"#E74C3C"},{v:goalsPerMatch,l:"MÉDIA GOLS",c:K.accL},{v:avgRating!=null?avgRating.toFixed(1):"-",l:"NOTA",c:"#EAB308"}].map(s=><G key={s.l} style={{padding:14,textAlign:"center"}}>
         <div style={{fontFamily:fH,fontSize:28,fontWeight:700,color:s.c}}>{s.v}</div>
         <div style={{fontFamily:fC,fontSize:9,fontWeight:700,color:K.txD,letterSpacing:"0.08em"}}>{s.l}</div>
       </G>)}
     </div>
+    {avgRating!=null&&<div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginTop:8}}><span style={{fontSize:11,color:K.txD,fontFamily:fC}}>Média das avaliações (estrelas) pós-partida:</span><Stars value={Math.round(avgRating)} ro sz={16}/><span style={{fontSize:12,fontWeight:700,color:"#EAB308"}}>{avgRating.toFixed(1)}</span></div>}
     {/* Achievements (#20) */}
     {achievements.length>0&&<><div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginTop:20,marginBottom:8,display:"flex",alignItems:"center",gap:8}}>🏆 CONQUISTAS ({achievements.length})<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>{achievements.map(a=><G key={a.label} style={{padding:14,textAlign:"center"}}>
