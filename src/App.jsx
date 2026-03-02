@@ -600,6 +600,8 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
         </div>
       </div>
     </G>;})()}
+    <div style={!hasTournament?{marginBottom:16,padding:16,borderRadius:12,border:`1px solid ${K.bd}`,background:K.bg2}:{}}>
+    {!hasTournament&&<div style={{fontFamily:fC,fontSize:13,fontWeight:700,color:K.gold,letterSpacing:"0.1em",marginBottom:14,display:"flex",alignItems:"center",gap:8}}>📰 HOJE NO FUTSABÃO<div style={{flex:1,height:1,background:K.gold+"25"}}/></div>}
     {/* Manchete do dia — uma por dia, com disputa entre comentaristas */}
     {(S.dailyHeadline&&S.dailyHeadline.date===today)&&<div style={{marginBottom:16}}>
       <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📰 MANCHETE DO DIA<div style={{flex:1,height:1,background:K.gold+"15"}}/></div>
@@ -647,6 +649,7 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
         <div style={{fontSize:10,color:K.txD,marginTop:8}}>Rodolfo Seifert — Árbitro · {today}</div>
       </G>
     </div>}
+    </div>
     {/* Pergunta do jornalista — só para atleta logado que ainda não respondeu nesta visita */}
     {loggedPlayer&&!hasSubmittedInterview&&(()=>{
       const jList=S.journalists?.length?S.journalists:[{id:"_",name:"Redação Futsabão"}];
@@ -715,6 +718,8 @@ Responda APENAS com essas duas linhas, sem título extra.`;
       </div>
     </div>}
     {/* Info cards */}
+    <div style={!hasTournament?{marginBottom:16,padding:16,borderRadius:12,border:`1px solid ${K.bd}`,background:K.bg2}:{}}>
+    {!hasTournament&&<div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.accL,letterSpacing:"0.08em",marginBottom:12,display:"flex",alignItems:"center",gap:8}}>🏟️ FICHA DO CAMPEONATO<div style={{flex:1,height:1,background:K.acc+"20"}}/></div>}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
       <G style={{padding:"12px 14px"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -737,19 +742,25 @@ Responda APENAS com essas duas linhas, sem título extra.`;
     </div>
     {/* Broadcasters */}
     <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap"}}>{BROADCASTERS.map(b=><span key={b.id} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:7,background:b.color+"0D",border:`1px solid ${b.color}15`,fontSize:11,fontWeight:700,fontFamily:fC,color:b.color}}>{b.icon} {b.name}</span>)}</div>
+    </div>
 
-    {!hasTournament?<G style={{padding:24,textAlign:"center",border:`1px solid ${K.gold}20`,background:`linear-gradient(180deg,${K.gold}08 0%,transparent 100%)`}}>
-      <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gold,letterSpacing:"0.12em",marginBottom:6}}>{daysUntilStart>0?`DIA -${daysUntilStart}`:"É HOJE!"}</div>
-      <span style={{fontSize:32,display:"block",marginBottom:8}}>🏆</span>
-      <p style={{fontFamily:fH,fontSize:20,fontWeight:700,color:K.tx,marginBottom:4}}>{daysUntilStart>0?`Faltam ${daysUntilStart} dia${daysUntilStart!==1?"s":""}`:"O torneio começa hoje!"}</p>
-      <p style={{fontSize:12,color:K.txD,marginBottom:16}}>O torneio começa em {startDateFormatted}</p>
-      <p style={{fontSize:13,fontWeight:700,color:K.gold,marginBottom:16}}>📅 Lembrem-se: o campeonato é dia {reminderDateStr}!</p>
-      <div style={{padding:"10px 16px",borderRadius:10,background:K.acc+"12",border:`1px solid ${K.acc}25`,display:"inline-block",marginBottom:14}}>
-        <span style={{fontFamily:fH,fontSize:22,fontWeight:700,color:K.accL}}>{pl.length}</span>
-        <span style={{fontSize:12,color:K.txD,marginLeft:6}}>atleta{pl.length!==1?"s":""} já garantido{pl.length!==1?"s":""}</span>
+    {!hasTournament?<div style={{marginBottom:20,overflow:"hidden",borderRadius:16,border:`2px solid ${K.gold}30`,boxShadow:`0 8px 24px ${K.gold}15`,background:`linear-gradient(180deg,${K.acc}08 0%,${K.gold}06 50%,${K.acc}08 100%)`}}>
+      <div style={{height:4,background:`linear-gradient(90deg,${K.acc},${K.gold},${K.acc})`}}/>
+      <div style={{padding:"28px 20px",textAlign:"center"}}>
+        <div style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.gold,letterSpacing:"0.2em",marginBottom:8}}>AQUECIMENTO</div>
+        <div style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gold,letterSpacing:"0.12em",marginBottom:6}}>{daysUntilStart>0?`DIA -${daysUntilStart}`:"É HOJE!"}</div>
+        <span style={{fontSize:36,display:"block",marginBottom:10}}>🏆</span>
+        <p style={{fontFamily:fH,fontSize:22,fontWeight:700,color:K.tx,marginBottom:6}}>{daysUntilStart>0?`Faltam ${daysUntilStart} dia${daysUntilStart!==1?"s":""}`:"O torneio começa hoje!"}</p>
+        <p style={{fontSize:12,color:K.txD,marginBottom:18}}>O torneio começa em {startDateFormatted}</p>
+        <p style={{fontSize:13,fontWeight:700,color:K.gold,marginBottom:18}}>📅 Lembrem-se: o campeonato é dia {reminderDateStr}!</p>
+        <div style={{padding:"12px 18px",borderRadius:12,background:K.acc+"15",border:`1px solid ${K.acc}30`,display:"inline-block",marginBottom:16}}>
+          <span style={{fontFamily:fH,fontSize:24,fontWeight:700,color:K.accL}}>{pl.length}</span>
+          <span style={{fontSize:12,color:K.txD,marginLeft:8}}>atleta{pl.length!==1?"s":""} já garantido{pl.length!==1?"s":""}</span>
+        </div>
+        <p style={{fontSize:12,color:K.txM,lineHeight:1.5,maxWidth:320,margin:"0 auto"}}>Aqueça a torcida! Convide os amigos, responda ao jornalista e acompanhe quem já está inscrito.</p>
       </div>
-      <p style={{fontSize:12,color:K.txM,lineHeight:1.5,maxWidth:320,margin:"0 auto"}}>Aqueça a torcida! Convide os amigos, responda ao jornalista e acompanhe quem já está inscrito.</p>
-    </G>:<>
+      <div style={{height:4,background:`linear-gradient(90deg,${K.acc},${K.gold},${K.acc})`}}/>
+    </div>:<>
       {/* CLASSIFICAÇÃO */}
       {st.length>0&&<div style={{marginBottom:16}}>
         <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:"#F97316",letterSpacing:"0.08em",marginBottom:8,display:"flex",alignItems:"center",gap:8}}>📊 CLASSIFICAÇÃO<div style={{flex:1,height:1,background:"#F9761612"}}/></div>
