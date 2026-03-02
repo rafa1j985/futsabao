@@ -605,12 +605,9 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         }
         const prompt=buildPrompt(author,commentatorPick,journalistPick);
         const raw=await callGemini(prompt,S.geminiKey);
-        let text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200);
-        if(!text){
-          text=author.authorType==="comentarista"?"Comentário ácido sobre o pré-torneio não gerado.":"Atualização rápida do pré-torneio não gerada.";
-        }
+        const text=(raw||"").replace(/^["']|["']$/g,"").trim().slice(0,200);
         accTime+=TWO_H;
-        newPosts.push({id:uid(),authorType:author.authorType,authorLabel,text,createdAt:new Date(accTime).toISOString()});
+        if(text)newPosts.push({id:uid(),authorType:author.authorType,authorLabel,text,createdAt:new Date(accTime).toISOString()});
       }
       up({preTorneioFeed:[...(S.preTorneioFeed||[]),...newPosts],lastFeedGenerationAt:accTime});
     })().finally(()=>{feedGeneratingRef.current=false;});
