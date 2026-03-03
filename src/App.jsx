@@ -1166,7 +1166,21 @@ function Moderation({S,up,go}){
   const[delPresident,sDelPresident]=useState(false);
   const[delReferee,sDelReferee]=useState(false);
   const[delFeedId,sDelFeedId]=useState(null);
+  const[feedAuthorType,sFeedAuthorType]=useState(()=>FEED_AUTHORS[0].authorType);
+  const[feedSubId,sFeedSubId]=useState(null);
+  const[feedText,sFeedText]=useState("");
   const gt=id=>S.teams.find(t=>t.id===id);
+  const commentators=S.commentators||[];
+  const journalists=S.journalists||[];
+  const selectedAuthor=FEED_AUTHORS.find(a=>a.authorType===feedAuthorType)||FEED_AUTHORS[0];
+  const feedAuthorLabel=feedAuthorType==="comentarista"&&feedSubId?(commentators.find(c=>c.id===feedSubId)||{}).name||selectedAuthor.authorLabel:feedAuthorType==="reporter"&&feedSubId?(journalists.find(j=>j.id===feedSubId)||{}).name||selectedAuthor.authorLabel:selectedAuthor.authorLabel;
+  const publishFeedPost=()=>{
+    const text=feedText.trim().slice(0,200);
+    if(!text)return;
+    const newPost={id:uid(),authorType:feedAuthorType,authorLabel:feedAuthorLabel,text,createdAt:new Date().toISOString()};
+    up({preTorneioFeed:[...(S.preTorneioFeed||[]),newPost]});
+    sFeedText("");
+  };
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="MODERAÇÃO"/>
     <SH icon="🛡️" title="MODERAÇÃO" sub="Excluir comentários e mensagens de todos" color="#E74C3C"/>
@@ -1221,6 +1235,38 @@ function Moderation({S,up,go}){
           </G>
         ))}
       </div>}
+    </div>
+    {/* Postar no feed (em nome de um personagem) */}
+    <div style={{marginBottom:16,padding:16,borderRadius:12,border:`1px solid ${K.gold}30`,background:K.gold+"08"}}>
+      <div style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gold,letterSpacing:"0.06em",marginBottom:10}}>📡 POSTAR NO FEED (em nome de um personagem)</div>
+      <div style={{display:"grid",gap:10}}>
+        <div>
+          <LB>Personagem</LB>
+          <SL value={feedAuthorType} onChange={e=>{const v=e.target.value;sFeedAuthorType(v);const auth=FEED_AUTHORS.find(a=>a.authorType===v);const comms=S.commentators||[];const journ=S.journalists||[];if(v==="comentarista"&&comms.length>0)sFeedSubId(comms[0].id);else if(v==="reporter"&&journ.length>0)sFeedSubId(journ[0].id);else sFeedSubId(null);}} style={{marginBottom:0}}>
+            {FEED_AUTHORS.map(a=><option key={a.authorType} value={a.authorType}>{a.icon} {a.authorLabel}</option>)}
+          </SL>
+        </div>
+        {feedAuthorType==="comentarista"&&commentators.length>0&&<div>
+          <LB>Comentarista</LB>
+          <SL value={feedSubId||""} onChange={e=>sFeedSubId(e.target.value||null)}>
+            <option value="">Padrão (Comentarista)</option>
+            {commentators.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </SL>
+        </div>}
+        {feedAuthorType==="reporter"&&journalists.length>0&&<div>
+          <LB>Jornalista</LB>
+          <SL value={feedSubId||""} onChange={e=>sFeedSubId(e.target.value||null)}>
+            <option value="">Padrão (Reporter)</option>
+            {journalists.map(j=><option key={j.id} value={j.id}>{j.name}</option>)}
+          </SL>
+        </div>}
+        <div>
+          <LB>Texto (máx 200 caracteres)</LB>
+          <textarea value={feedText} onChange={e=>sFeedText(e.target.value.slice(0,200))} placeholder="Digite a fala do personagem..." rows={3} style={{width:"100%",padding:12,borderRadius:8,border:`1px solid ${K.bd}`,background:K.inp,color:K.tx,fontSize:13,fontFamily:ff,resize:"vertical",boxSizing:"border-box"}}/>
+          <div style={{fontSize:10,color:K.txD,marginTop:4}}>{feedText.length}/200</div>
+        </div>
+        <BT onClick={publishFeedPost} disabled={!feedText.trim()} style={{width:"100%"}}>PUBLICAR NO FEED</BT>
+      </div>
     </div>
     {/* Feed pré-torneio (Ao vivo) */}
     <div style={{marginBottom:16}}>
