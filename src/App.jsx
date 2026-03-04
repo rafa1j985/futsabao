@@ -444,7 +444,7 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer,onShowHistoria}){
   const[showPw,sShowPw]=useState(false);const[showAthleteLogin,sShowAthleteLogin]=useState(false);
   const[pw,sPw]=useState("");const[err,sErr]=useState(false);
   const[pin,sPin]=useState("");const[pinErr,sPinErr]=useState("");const[selPlayer,sSelPlayer]=useState("");
-  const tryAdmin=()=>{if(pw==="9512"){onRole("admin");}else{sErr(true);setTimeout(()=>sErr(false),2000);}};
+  const tryAdmin=()=>{if(pw==="9513"){onRole("admin");}else{sErr(true);setTimeout(()=>sErr(false),2000);}};
   const tryAthleteLogin=()=>{
     const p=S.players.find(x=>x.id===selPlayer);
     if(!p){sPinErr("Selecione um atleta");return;}
