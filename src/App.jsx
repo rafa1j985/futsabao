@@ -193,7 +193,6 @@ function PF({onSubmit,label="CADASTRAR",initial={},showRating=false}){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
       <div style={{gridColumn:"1/-1"}}>{fd("Nome Completo","name","João da Silva",{},true)}</div>
       {fd("Nome de Boleiro","nickname","Pelézinho")}
-      <div style={{marginBottom:10}}><LB>Posição</LB><SL value={f.position} onChange={e=>sF(p=>({...p,position:e.target.value}))}><option value="">Selecione...</option>{POS.map(p=><option key={p} value={p}>{p}</option>)}</SL></div>
       {fd("Ano de Nascimento","birthYear","1995",{type:"number",inputMode:"numeric",min:1950,max:2015})}
       {fd("Número da Camisa","number","10",{type:"number",inputMode:"numeric",min:1,max:99})}
       {fd("Crie uma senha de ACESSO (4 números)","pin","1234",{type:"password",maxLength:4,pattern:"[0-9]*",inputMode:"numeric"})}
