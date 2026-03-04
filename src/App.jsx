@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 /* ══════════ UTILS ══════════ */
 const uid = () => Math.random().toString(36).substr(2, 9);
 const shuf = (a) => { const s=[...a]; for(let i=s.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[s[i],s[j]]=[s[j],s[i]];} return s; };
+function playHino(){ const a=new Audio("/hino-futsabao.mp3"); a.play().catch(()=>{}); }
 
 const compressPhoto=(dataUrl,maxW=200,q=0.7)=>new Promise(r=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");const ratio=Math.min(maxW/img.width,maxW/img.height,1);c.width=img.width*ratio;c.height=img.height*ratio;const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);r(c.toDataURL("image/webp",q));};img.onerror=()=>r(dataUrl);img.src=dataUrl;});
 const POS = ["Goleiro","Jogador de Linha"];
@@ -481,7 +482,7 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer,onShowHistoria}){
           <div style={{marginLeft:"auto",color:K.accL,fontSize:20}}>›</div>
         </div>
       </G>
-      {onShowHistoria&&<div style={{marginTop:20,textAlign:"center"}}><button type="button" onClick={onShowHistoria} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:15,padding:"10px 16px",fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Conheça a história do Futsabão</button></div>}
+      {onShowHistoria&&<div style={{marginTop:20,textAlign:"center",display:"flex",flexWrap:"wrap",justifyContent:"center",gap:12}}><button type="button" onClick={onShowHistoria} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:15,padding:"10px 16px",fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Conheça a história do Futsabão</button><button type="button" onClick={playHino} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:15,padding:"10px 16px",fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Ouvir hino</button></div>}
     </div>:showAthleteLogin?<div style={{maxWidth:340,margin:"0 auto"}}>
       <G style={{padding:24}}>
         <div style={{fontSize:22,marginBottom:16}}>🏅</div>
@@ -750,7 +751,7 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         <span style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gDm,letterSpacing:"0.15em"}}>★ ★ ★ ★ ★</span>
       </div>
     </div>
-    <div style={{textAlign:"center",marginBottom:16}}><button type="button" onClick={()=>go("historia")} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:12,fontFamily:ff,textDecoration:"underline",opacity:0.9}}>História do Futsabão</button></div>
+    <div style={{textAlign:"center",marginBottom:16,display:"flex",flexWrap:"wrap",justifyContent:"center",gap:12}}><button type="button" onClick={()=>go("historia")} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:12,fontFamily:ff,textDecoration:"underline",opacity:0.9}}>História do Futsabão</button><button type="button" onClick={playHino} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:12,fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Ouvir hino</button></div>
     {/* Welcome banner after registration */}
     {justRegistered&&loggedPlayer&&<G style={{textAlign:"center",padding:"24px 20px",marginBottom:16,border:`1px solid ${K.grn}30`,background:`linear-gradient(135deg,${K.grn}08,${K.grn}15)`}}>
       <div style={{fontSize:48,marginBottom:10}}>✅</div>
