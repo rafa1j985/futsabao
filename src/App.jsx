@@ -26,6 +26,58 @@ const JOURNALIST_QUESTIONS=[
   "Qual dica você daria para quem está começando?"
 ];
 
+const HISTORIA_FUTSABAO={
+  title:"A HISTÓRIA DO FUTSABÃO",
+  subtitle:"Do inflável holandês aos campos escorregadios do Brasil — Uma história de água, detergente, quedas e gargalhadas",
+  year:"2026",
+  chapters:[
+    {title:"Capítulo 1 — Uma Ideia Encharcada em Roterdã",paragraphs:[
+      "Holanda, 1988. A cidade de Roterdã enfrentava mais um verão atípico — quente, úmido e sem a menor graça para quem não morava perto do litoral. Pieter van der Zeep, um ex-jogador de futsal de 38 anos dono de uma pequena empresa de brinquedos infláveis para festas, enfrentava um problema prático: seus castelos infláveis encalhavam no verão. Crianças queriam água, piscina, algo refrescante. Ninguém queria pular num plástico quente debaixo de sol.",
+      "A solução veio por acidente. Num sábado de julho, enquanto limpava um de seus infláveis no quintal da empresa, Pieter despejou água com detergente sobre a superfície para remover a sujeira acumulada. Seu filho, Kees, de nove anos, invadiu o inflável antes que o pai terminasse a limpeza. Em segundos, o menino escorregou, caiu sentado, levantou, escorregou de novo e começou a gargalhar descontroladamente. Dois vizinhos — ambos crianças — pularam para dentro. Em cinco minutos, havia seis moleques escorregando, colidindo e rindo num caos completo.",
+      "Pieter, que era apaixonado por futebol, observou a cena com um sorriso e teve o estalo que mudaria sua vida: e se aquele inflável tivesse o formato de um campo de futebol? Com traves infláveis nas pontas, laterais altas pra manter a água dentro e uma superfície permanentemente ensaboada?",
+      "\"Eu olhei pro meu filho escorregando naquele inflável e pensei: se isso é tão divertido sem bola, imagina COM bola.\" — Pieter van der Zeep, 1988"
+    ]},
+    {title:"Capítulo 2 — Nasce o Zeepvoetbal",paragraphs:[
+      "Pieter passou os três meses seguintes no galpão de sua fábrica projetando o primeiro protótipo. O conceito era simples e genial: um brinquedo inflável gigante no formato de um minicampo de futebol, com aproximadamente 12 metros de comprimento por 6 de largura. As paredes laterais tinham cerca de um metro de altura, formando uma espécie de arena fechada que impedia a água de escorrer pra fora. Nas duas extremidades, traves infláveis. O piso, feito de lona de PVC reforçada, era liso o suficiente para que, com água e detergente, se tornasse uma superfície praticamente impossivel de se manter em pé.",
+      "As regras eram propositalmente básicas: dois times de três jogadores, descalços, sem goleiro fixo, partidas curtas de cinco a dez minutos. Antes de cada jogo, despejava-se água com detergente líquido generosamente sobre todo o piso do inflável. O resultado era uma mistura caótica e hilariante de futebol, patinação no gelo e parque aquático.",
+      "Pieter batizou a invenção de \"Zeepvoetbal\" — literalmente \"futebol de sabão\" em holandês. O primeiro teste público aconteceu numa festa de bairro em Delfshaven, em setembro de 1988. A fila para jogar durou três horas. Adultos empurravam crianças na fila — não por grosseria, mas porque queriam jogar também.",
+      "Em 1990, Pieter já fabricava e alugava dez unidades do campo inflável. Empresas de eventos começaram a encomendar o brinquedo para festas corporativas e kermesses. O Zeepvoetbal virou sinônimo de diversão na Holanda. Festivais de verão reservavam espaços exclusivos para o jogo. O jornal De Telegraaf publicou uma reportagem chamando-o de \"o esporte em que a dignidade é a primeira a escorregar.\"",
+      "Ao longo dos anos 90, o conceito se espalhou pela Bélgica, Alemanha e Inglaterra, sempre com o mesmo formato: o campo inflável, a água, o detergente e a certeza absoluta de que todo mundo ia cair."
+    ]},
+    {title:"Capítulo 3 — Rafael Juliano e a Descoberta",paragraphs:[
+      "Rafael Juliano, brasileiro de Campinas, era um jovem empreendedor do universo do Pilates e do bem-estar que, em 2011, viajou à Europa para participar de uma convenção internacional de saúde em Amsterdã. Conhecido entre os amigos como \"Rafão\", ele tinha um olho afiado para identificar oportunidades onde os outros viam apenas barulho.",
+      "Após a convenção, Rafão decidiu fazer um bate-volta até Roterdã. Um amigo holandês que conhecera no evento havia mencionado uma \"coisa maluca que os holandeses fazem com futebol e sabão.\" Rafael, curioso por natureza, pegou o trem sem pensar duas vezes.",
+      "Foi numa tarde de sábado, numa área aberta perto do rio Maas, que Rafão viu pela primeira vez: um enorme campo inflável verde, com paredes laterais, traves nas pontas e cerca de dez adultos lá dentro tentando jogar futebol sobre uma poça de água com detergente. O som era inconfundível — uma mistura de bolas batendo na lona, corpos caindo na água ensaboada e gargalhadas tão altas que se ouviam do outro lado da rua.",
+      "\"Eu fiquei parado ali uns dez minutos só assistindo. Tinha um cara de terno que tinha entrado no inflável pra jogar. De terno! Escorregou no primeiro passo e levantou rindo. Ali eu pensei: isso é o Brasil. Isso TEM que ir pro Brasil.\" — Rafael \"Rafão\" Juliano",
+      "Rafael não só assistiu — ele entrou. Jogou três partidas seguidas, caiu pelo menos vinte vezes e saiu do inflável encharcado, com o joelho ralado e o sorriso mais largo que já tinha dado em meses. Depois, sentou com os organizadores num bar em Delfshaven e passou a noite inteira fazendo perguntas: quem fabricava o inflável, qual o material, quanto custava, como funcionava a logística, qual detergente usavam, quantas pessoas cabiam por vez.",
+      "Na mesa do bar, num guardanapo de papel, Rafão desenhou o primeiro esboço do que viria a ser o Futsabão no Brasil. Ao lado do desenho, escreveu três palavras: \"Água. Sabão. Alegria.\""
+    ]},
+    {title:"Capítulo 4 — O Inflável Atravessa o Oceano",paragraphs:[
+      "Rafael voltou ao Brasil com uma missão. Durante os últimos meses de 2011, negociou diretamente com um fabricante holandês de infláveis a importação de duas unidades do campo de Zeepvoetbal. O investimento foi alto — quase todo o dinheiro que tinha guardado — mas Rafão tinha uma convicção inabalável: \"Se isso funciona na Holanda com 5 graus, imagina no Brasil com 35.\"",
+      "Em janeiro de 2012, os dois campos infláveis chegaram ao porto de Santos dentro de dois containers. Rafael foi pessoalmente buscar a carga. Quando abriu o container e viu aquela lona verde dobrada, ele ficou em silêncio. Era real.",
+      "O primeiro campo foi inflado num terreno baldio no bairro do Chapadão, em Campinas. Quando a estrutura tomou forma — doze metros de comprimento, paredes infláveis laterais, traves nas pontas, aquele verde vibrante sob o sol da Pedreira — a vizinhança inteira parou pra olhar. Ele ligou a mangueira. Despejou cinco litros de detergente. Chutou a primeira bola. E caiu. Imediatamente. De costas. E começou a rir.",
+      "\"Naquele momento, caindo de costas dentro daquele inflável ensaboado, debaixo do sol de Campinas, eu soube que ia dar certo. Porque se um cara de 1,79m não consegue ficar de pé, NINGUÉM consegue. E quando ninguém consegue, todo mundo é igual. E quando todo mundo é igual, todo mundo se diverte.\" — Rafão"
+    ]},
+    {title:"Capítulo 5 — Nasce o Futsabão",paragraphs:[
+      "O nome nasceu no primeiro teste. Quando Rafão entrou no inflável, deu dois passos, escorregou e, enquanto se levantava todo ensaboado, gritou: \"Isso aqui é futsal com sabão, bicho! É Futsabão!\" O nome pegou na hora. Rafael, com seu instinto de marketing, soube imediatamente que não precisava procurar mais: curto, sonoro, autoexplicativo e impossível de esquecer.",
+      "O primeiro evento oficial aconteceu em março de 2012, num sítio nos arredores de Campinas. Oito equipes de amigos, cada uma com três jogadores. O campo inflável foi montado num gramado, a mangueira ficou ligada o jogo inteiro, e galões de detergente eram despejados a cada duas partidas pra manter o piso escorregadio. As regras eram simples: dois tempos de cinco minutos, sem goleiro fixo, sem faltas — porque, honestamente, como marcar falta se ninguém sabe se o cara caiu porque foi empurrado ou porque escorregou?",
+      "O evento foi filmado por um amigo com uma câmera DSLR emprestada. O vídeo de quatro minutos, editado com música animada, mostrava adultos de todas as idades escorregando, colidindo, fazendo gols acidentais e comemorando como se fosse final de Copa do Mundo — tudo dentro daquele campo inflável encharcado de espuma. Postado no YouTube, o vídeo viralizou em duas semanas: 500 mil visualizações. A EPTV fez uma reportagem. O Jornal Hoje mencionou o fenômeno. O telefone de Rafael não parou de tocar."
+    ]},
+    {title:"Capítulo 6 — O Brasil Escorrega",paragraphs:[
+      "O que começou com dois infláveis importados virou um negócio em escala nacional. Até o fim de 2012, Rafael já havia encontrado fabricantes brasileiros capazes de produzir os campos infláveis localmente, a um custo muito menor. O modelo era engenhoso: um inflável em formato de minicampo com paredes de aproximadamente um metro, traves integradas, sistema de drenagem para a água não acumular demais, e uma superfície de PVC que, com água e detergente, se transformava numa pista de patinação tropical.",
+      "Rafael criou um modelo de licenciamento: empreendedores locais compravam o inflável com a marca Futsabão e recebiam um kit completo — manual de operação, regras oficiais, estratégia de marketing e até a receita exata da proporção de água e detergente (um segredo que Rafão guardava com orgulho: \"Nem muito escorregadio a ponto de ninguém conseguir andar, nem pouco a ponto de virar futsal normal. O ponto é cair a cada três passos, não a cada um.\").",
+      "O Futsabão explodiu em festas de aniversário, eventos corporativos, confraternizações de fim de ano, festas juninas e até casamentos. Arenas fixas surgiram em São Paulo, Rio, Curitiba, Brasília, Recife e Florianópolis. Empresas alugavam o inflável para team building. Faculdades organizavam campeonatos intercursos. Cidades do interior montavam torneios de Futsabão nas festas municipais. O brinquedo inflável que veio da Holanda tinha encontrado sua verdadeira casa."
+    ]},
+    {title:"Capítulo 7 — O Legado de Água e Sabão",paragraphs:[
+      "Pieter van der Zeep visitou o Brasil em dezembro de 2012, a convite de Rafão. O holandês, já com 62 anos, nunca tinha saido da Europa. Quando chegou ao evento especial que Rafael organizou em Campinas — quatro campos infláveis montados lado a lado, música ao vivo, churrasco, 32 equipes competindo, crianças brincando num inflável menor ao lado — Pieter ficou em silêncio por um longo minuto. Depois, com os olhos marejados, abraçou Rafael e disse: \"Você não trouxe meu brinquedo pro Brasil. Você deu uma alma pra ele.\"",
+      "Mais de uma década depois, o Futsabão se consolidou como um dos brinquedos-esportes mais populares do país. Existem ligas amadoras espalhadas por todos os estados. A Copa Futsabão, torneio nacional anual, reúne centenas de equipes. Canais de YouTube e perfis no Instagram dedicados ao esporte acumulam milhões de visualizações com compilações de quedas, gols impossíveis e celebrações emocionantes — tudo sobre a superfície molhada e ensaboada de um inflável.",
+      "Rafael Juliano — o Rafão — se tornou uma figura lendária no universo do entretenimento esportivo brasileiro. O cara que viu um campo inflável ensaboado na Holanda e pensou: \"Isso é a cara do Brasil.\"",
+      "Quando perguntado sobre o segredo do Futsabão, Rafão sempre dá a mesma resposta: \"O segredo é o detergente. Não o detergente de verdade — embora a gente use bastante. O segredo é que o detergente tira a trava. Tira a vergonha. Tira a pose. Quando você entra naquele inflável e escorrega no primeiro passo, você para de se levar a sério. E quando você para de se levar a sério, você começa a se divertir de verdade.\"",
+      "Pieter van der Zeep faleceu em 2021, aos 71 anos, em Roterdã. Em sua homenagem, Rafael instituiu a \"Copa Pieter\", realizada todo mês de julho no Brasil. O troféu é uma miniatura dourada de um campo inflável com um frasco de detergente ao lado, sobre uma base de madeira. Na placa, a inscrição: \"Para aqueles que não têm medo de cair.\"",
+      "Do Zeepvoetbal ao Futsabão — Uma história de água, detergente e glória inflável."
+    ]}
+  ]
+};
 
 /* ══════════ SOUND ENGINE (#12) ══════════ */
 const SFX={
@@ -42,7 +94,7 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
-const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{},preTorneioFeed:[],lastFeedGenerationAt:null,matchStarRatings:{}};
+const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{},preTorneioFeed:[],lastFeedGenerationAt:null,matchStarRatings:{},feedScriptedReporterPool:[0,1,2,3,4,5,6,7,8,9],feedScriptedCommentatorPool:[0,1,2,3,4,5,6,7,8,9],lastScriptedFeedDate:null};
 function getPlayerStarRating(playerId,matchStarRatings){
   const arr=[];
   Object.values(matchStarRatings||{}).forEach(list=>list.forEach(r=>{if(r.playerId===playerId)arr.push(r.stars);}));
@@ -137,6 +189,29 @@ const LB=({children})=><label style={{fontSize:10,fontWeight:700,color:K.gDm,fon
 function Badge({team,size=28}){if(!team)return null;if(team.logo)return <img src={team.logo} alt={team.name+" escudo"} style={{width:size,height:size,borderRadius:size*.24,objectFit:"cover",border:`1px solid ${K.bd}`}}/>;return <div style={{width:size,height:size,borderRadius:size*.24,background:team.color?.bg||K.txM,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:size*.38,color:team.color?.t||"#fff",flexShrink:0,fontFamily:fC}}>{team.name?.[0]||"?"}</div>;}
 function Stars({value=0,onChange,ro=false,sz=18}){return <div style={{display:"flex",gap:1}} role="group" aria-label={`Nota: ${value} de 5`}>{[1,2,3,4,5].map(n=><button key={n} aria-label={`${n} estrela${n>1?"s":""}`} onClick={()=>!ro&&onChange?.(n)} style={{background:"none",border:"none",cursor:ro?"default":"pointer",padding:1,color:n<=value?K.gold:K.bd,fontSize:sz,lineHeight:1,transition:"color 0.15s"}}>★</button>)}</div>;}
 function Modal({open,onClose,title,children}){if(!open)return null;return <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}><div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.75)",backdropFilter:"blur(8px)"}}/><G style={{position:"relative",padding:24,maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto",border:`1px solid ${K.bdh}`,animation:"fu 0.3s ease"}} onClick={e=>e.stopPropagation()}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}><h3 style={{fontFamily:fH,fontSize:18,fontWeight:700,color:K.gold,textTransform:"uppercase",letterSpacing:"0.04em"}}>{title}</h3><button onClick={onClose} aria-label="Fechar" style={{background:"none",border:"none",color:K.txD,cursor:"pointer",fontSize:20,padding:4}}>✕</button></div>{children}</G></div>;}
+
+/* ══════════ HISTÓRIA DO FUTSABÃO ══════════ */
+function HistoriaScreen({onBack}){
+  const {title,subtitle,year,chapters}=HISTORIA_FUTSABAO;
+  return <div style={{paddingTop:16,paddingBottom:80,maxWidth:920,margin:"0 auto"}}>
+    <BB onClick={onBack} label="VOLTAR"/>
+    <div style={{textAlign:"center",marginBottom:32}}>
+      <h1 style={{fontFamily:fH,fontSize:28,fontWeight:700,color:K.gold,letterSpacing:"0.04em",textTransform:"uppercase",marginBottom:8}}>{title}</h1>
+      <p style={{fontFamily:ff,fontSize:14,color:K.txD,lineHeight:1.5,maxWidth:560,margin:"0 auto 6px"}}>{subtitle}</p>
+      <span style={{fontFamily:fC,fontSize:12,fontWeight:700,color:K.gDm,letterSpacing:"0.08em"}}>{year}</span>
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:28}}>
+      {chapters.map((ch,i)=>(
+        <section key={i} aria-labelledby={`historia-ch-${i}`}>
+          <h2 id={`historia-ch-${i}`} style={{fontFamily:fH,fontSize:18,fontWeight:700,color:K.gBr,marginBottom:12,letterSpacing:"0.02em"}}>{ch.title}</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {ch.paragraphs.map((p,j)=>(<p key={j} style={{fontFamily:ff,fontSize:14,color:K.tx,lineHeight:1.65}}>{p}</p>))}
+          </div>
+        </section>
+      ))}
+    </div>
+  </div>;
+}
 
 /* ══════════ CONFETTI ══════════ */
 function Confetti({active}){
@@ -233,6 +308,7 @@ export default function App(){
   ];
   const initState={...DEFAULT_STATE,commentators:[...defaultNarrators,...defaultAnalysts],journalists:[...defaultJournalists]};
   const[role,sRole]=useState(null);
+  const[showHistoria,sShowHistoria]=useState(false);
   const[light,sLight]=useState(()=>{try{return localStorage.getItem("futsabao_theme")!=="dark";}catch(e){return true;}});
   const[loggedPlayer,sLoggedPlayer]=useState(null);
   const[loading,sLoading]=useState(true);
@@ -302,7 +378,7 @@ export default function App(){
   // Auto-clear save error toast after 5s
   useEffect(()=>{if(!saveError)return;const t=setTimeout(()=>sSetSaveError(null),5000);return()=>clearTimeout(t);},[saveError]);
 
-  const SCREEN_NAMES={home:"Início",feed:"Hoje no Futsabão",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",assists:"Assistências",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
+  const SCREEN_NAMES={home:"Início",feed:"Hoje no Futsabão",historia:"História",players:"Jogadores",register:"Cadastro",teams:"Times",tournament:"Campeonato",match:"Partida Ao Vivo",standings:"Classificação",scorers:"Artilheiros",assists:"Assistências",commentators:"Transmissão",journalists:"Jornalistas",sumula:"Súmula",sponsors:"Patrocinadores",matchview:"Partida",gallery:"Galeria",bolao:"Bolão",dashboard:"Dashboard",tvmode:"Modo TV",playerstats:"Ficha do Jogador",moderation:"Moderação",recados:"Recados"};
   const go=useCallback((s,x={})=>{
     sS(p=>({...p,screen:s,...x}));
     try{const title=SCREEN_NAMES[s]||s;window.history.pushState({screen:s},"",`#${s}`);document.title=`Futsabão — ${title}`;}catch(e){}
@@ -332,8 +408,16 @@ export default function App(){
     <div style={{fontSize:11,color:K.txD,marginTop:8}}>Sincronizando com a nuvem ☁️</div>
   </div>;
 
-  if(!role)return <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}><GeoBg light={light}/><div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>{!supabase&&<div role="status" style={{padding:"10px 14px",marginTop:12,marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}<LoginScreen onRole={sRole} light={light} toggleTheme={toggleTheme} S={S} sLoggedPlayer={sLoggedPlayer}/></div></div>;
-  const athleteScreens={home:()=><AthleteDashboard {...props}/>,feed:()=><AthleteFeed {...props}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,assists:Assists,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
+  if(!role)return (
+    <div style={{minHeight:"100vh",fontFamily:ff,color:K.tx,position:"relative"}}>
+      <GeoBg light={light}/>
+      <div style={{position:"relative",zIndex:1,maxWidth:920,margin:"0 auto",padding:"0 16px"}}>
+        {!supabase&&!showHistoria&&<div role="status" style={{padding:"10px 14px",marginTop:12,marginBottom:8,borderRadius:10,border:`1px solid ${K.gDm}40`,background:K.gDm+"0D",fontSize:12,color:K.gDm,fontFamily:ff}}>⚠️ Dados só neste dispositivo. Configure Supabase para salvar na nuvem.</div>}
+        {showHistoria?<HistoriaScreen onBack={()=>sShowHistoria(false)}/>:<LoginScreen onRole={sRole} light={light} toggleTheme={toggleTheme} S={S} sLoggedPlayer={sLoggedPlayer} onShowHistoria={()=>sShowHistoria(true)}/>}
+      </div>
+    </div>
+  );
+  const athleteScreens={home:()=><AthleteDashboard {...props}/>,feed:()=><AthleteFeed {...props}/>,historia:()=><HistoriaScreen onBack={()=>go("home")}/>,register:()=><Register {...props}/>,matchview:MatchView,gallery:Gallery,bolao:Bolao,assists:Assists,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>};
   const adminScreens={home:Home,players:Players,register:Register,teams:Teams,tournament:Tournament,match:Match,standings:Standings,scorers:Scorers,assists:Assists,commentators:Commentators,sumula:Sumula,dashboard:()=><AthleteDashboard {...props}/>,sponsors:Sponsors,matchview:MatchView,gallery:Gallery,tvmode:TVMode,playerstats:()=><PlayerStats {...props} playerId={S.viewPlayerId}/>,moderation:Moderation,recados:Recados};
   const SC=role==="admin"?adminScreens:athleteScreens;
   const C=SC[S.screen]||(role==="admin"?Home:()=><AthleteDashboard {...props}/>);
@@ -355,7 +439,7 @@ export default function App(){
 }
 
 /* ══════════ LOGIN SCREEN ══════════ */
-function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer}){
+function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer,onShowHistoria}){
   const[showPw,sShowPw]=useState(false);const[showAthleteLogin,sShowAthleteLogin]=useState(false);
   const[pw,sPw]=useState("");const[err,sErr]=useState(false);
   const[pin,sPin]=useState("");const[pinErr,sPinErr]=useState("");const[selPlayer,sSelPlayer]=useState("");
@@ -397,6 +481,7 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer}){
           <div style={{marginLeft:"auto",color:K.accL,fontSize:20}}>›</div>
         </div>
       </G>
+      {onShowHistoria&&<div style={{marginTop:20,textAlign:"center"}}><button type="button" onClick={onShowHistoria} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:12,fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Conheça a história do Futsabão</button></div>}
     </div>:showAthleteLogin?<div style={{maxWidth:340,margin:"0 auto"}}>
       <G style={{padding:24}}>
         <div style={{fontSize:22,marginBottom:16}}>🏅</div>
@@ -531,6 +616,29 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
   },[S.geminiKey,S.torcedorMessage,S.players,today]);
   const feedGeneratingRef=useRef(false);
   useEffect(()=>{
+    if(hasTournament||S.lastScriptedFeedDate===today)return;
+    let repPool=Array.isArray(S.feedScriptedReporterPool)?[...S.feedScriptedReporterPool]:[0,1,2,3,4,5,6,7,8,9];
+    let comPool=Array.isArray(S.feedScriptedCommentatorPool)?[...S.feedScriptedCommentatorPool]:[0,1,2,3,4,5,6,7,8,9];
+    if(repPool.length<2)repPool=[0,1,2,3,4,5,6,7,8,9];
+    if(comPool.length<2)comPool=[0,1,2,3,4,5,6,7,8,9];
+    const repIdx=shuf(repPool).slice(0,2);
+    const comIdx=shuf(comPool).slice(0,2);
+    const repPoolNext=repPool.filter(i=>!repIdx.includes(i));
+    const comPoolNext=comPool.filter(i=>!comIdx.includes(i));
+    const athletes=(S.players||[]).map(p=>p.nickname||p.name).filter(Boolean);
+    const nick=athletes.length>0?athletes[Math.floor(Math.random()*athletes.length)]:"atleta";
+    const subst=(t)=>String(t).replace(/\bAtleta\b/g,nick).replace(/\batleta\b/g,nick).replace(/\batletas\b/g,nick+" e a galera");
+    const startOfToday=new Date(today.replace(/-/g,"/")).getTime();
+    const hour=(h)=>new Date(startOfToday+h*60*60*1000).toISOString();
+    const newPosts=[
+      {id:uid(),authorType:"reporter",authorLabel:FEED_SCRIPTED_REPORTERS[repIdx[0]].authorLabel,text:subst(FEED_SCRIPTED_REPORTERS[repIdx[0]].text),createdAt:hour(8)},
+      {id:uid(),authorType:"reporter",authorLabel:FEED_SCRIPTED_REPORTERS[repIdx[1]].authorLabel,text:subst(FEED_SCRIPTED_REPORTERS[repIdx[1]].text),createdAt:hour(10)},
+      {id:uid(),authorType:"comentarista",authorLabel:FEED_SCRIPTED_COMMENTATORS[comIdx[0]].authorLabel,text:subst(FEED_SCRIPTED_COMMENTATORS[comIdx[0]].text),createdAt:hour(14)},
+      {id:uid(),authorType:"comentarista",authorLabel:FEED_SCRIPTED_COMMENTATORS[comIdx[1]].authorLabel,text:subst(FEED_SCRIPTED_COMMENTATORS[comIdx[1]].text),createdAt:hour(16)}
+    ];
+    up({preTorneioFeed:[...(S.preTorneioFeed||[]),...newPosts],feedScriptedReporterPool:repPoolNext,feedScriptedCommentatorPool:comPoolNext,lastScriptedFeedDate:today});
+  },[hasTournament,today,S.lastScriptedFeedDate,S.feedScriptedReporterPool,S.feedScriptedCommentatorPool,S.players,S.preTorneioFeed]);
+  useEffect(()=>{
     if(!S.geminiKey||hasTournament||feedGeneratingRef.current)return;
     const feed=S.preTorneioFeed||[];
     const feedToday=feed.filter(p=>p.createdAt&&p.createdAt.startsWith(today));
@@ -642,6 +750,7 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
         <span style={{fontFamily:fC,fontSize:10,fontWeight:700,color:K.gDm,letterSpacing:"0.15em"}}>★ ★ ★ ★ ★</span>
       </div>
     </div>
+    <div style={{textAlign:"center",marginBottom:16}}><button type="button" onClick={()=>go("historia")} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:12,fontFamily:ff,textDecoration:"underline",opacity:0.9}}>História do Futsabão</button></div>
     {/* Welcome banner after registration */}
     {justRegistered&&loggedPlayer&&<G style={{textAlign:"center",padding:"24px 20px",marginBottom:16,border:`1px solid ${K.grn}30`,background:`linear-gradient(135deg,${K.grn}08,${K.grn}15)`}}>
       <div style={{fontSize:48,marginBottom:10}}>✅</div>
@@ -1002,6 +1111,30 @@ Uma ou duas frases curtas (máx 180 caracteres). Responda APENAS o texto, sem as
 }
 
 /* ══════════ ATHLETE FEED (Hoje no Futsabão) ══════════ */
+const FEED_SCRIPTED_REPORTERS=[
+  {authorLabel:"Mauro Naves",text:"Atleta, como você se prepara fisicamente sabendo que vai passar mais tempo no chão do que em pé durante a partida?"},
+  {authorLabel:"Eric Faria",text:"Estou aqui na lateral do inflável e o cheiro de detergente é tão forte que meus olhos já estão ardendo. A torcida está enlouquecida!"},
+  {authorLabel:"Galvão Bueno",text:"Bem, amigos da Rede Globo, já narrei Copa do Mundo, Olimpíadas, Fórmula 1, mas nunca vi tanta gente feliz caindo ao mesmo tempo!"},
+  {authorLabel:"Tadeu Schmidt",text:"Eu entrei no inflável pra testar. Durei exatamente três segundos em pé. Três. Agora entendo por que chamam isso de esporte mais honesto do Brasil."},
+  {authorLabel:"Fernanda Gentil",text:"Você fez o gol da final do ano passado escorregando de costas. Foi intencional ou o detergente que decidiu por você?"},
+  {authorLabel:"Tino Marcos",text:"Nos bastidores do campeonato, os atletas passam detergente nos braços como se fosse protetor solar. Tem um ritual próprio aqui dentro."},
+  {authorLabel:"Carina Pereira",text:"Direto de BH, terra natal do Futsabão! Arquibancadas lotadas, quatro infláveis montados lado a lado e o estoque de detergente já preocupa os organizadores!"},
+  {authorLabel:"André Rizek",text:"Me explica uma coisa: existe alguma tática real nesse esporte ou a estratégia é simplesmente torcer pra o adversário cair primeiro?"},
+  {authorLabel:"Mylena Ciribelli",text:"A semifinal acabou de terminar e posso garantir: ninguém saiu seco, ninguém saiu triste e o inflável precisa de mais detergente urgente!"},
+  {authorLabel:"Alex Escobar",text:"Bom dia! Hoje tem final do Campeonato Nacional de Futsabão. Eu tentei fazer a reportagem de dentro do inflável. A câmera sobreviveu. Eu, não."}
+];
+const FEED_SCRIPTED_COMMENTATORS=[
+  {authorLabel:"Craque Neto",text:"Eu jogava na lama, na chuva, no barro do Corinthians! Bota eu nesse inflável que eu faço gol até de cabeça escorregando, pô!"},
+  {authorLabel:"PVC (Paulo Vinícius Coelho)",text:"Os dados são claros: no Futsabão o jogador fica em pé em média 4,2 segundos por jogada. É estatisticamente o esporte com maior índice de quedas por minuto no planeta."},
+  {authorLabel:"Caio Ribeiro",text:"Cara, é genial! Não tem craque nem perna de pau no sabão. O detergente é o grande equalizador. Todo mundo vira iniciante ali dentro!"},
+  {authorLabel:"Denílson",text:"Ó, é o seguinte: eu fiz pedalada no Camp Nou, na Copa, em tudo quanto é lugar. Mas pedalada no sabão? Aí eu quero ver quem aguenta!"},
+  {authorLabel:"Roger Flores",text:"Taticamente, o Futsabão exige algo raro: humildade. Você arma a jogada perfeita e o detergente simplesmente decide que não vai acontecer."},
+  {authorLabel:"Casagrande",text:"Isso é democracia pura, bicho. No inflável ensaboado não tem grife, não tem ego, não tem estrela. Só gente caindo e rindo junto. Esporte de verdade."},
+  {authorLabel:"Arnaldo Cezar Coelho",text:"A regra é clara! No Futsabão não existe falta porque ninguém consegue provar se o jogador caiu sozinho ou foi empurrado. Brilhante!"},
+  {authorLabel:"Ana Thaís Matos",text:"O Futsabão prova que esporte não precisa ser sério pra ser transformador. A alegria genuína no rosto de quem joga é a melhor arbitragem que existe."},
+  {authorLabel:"Benjamin Back",text:"Vou falar uma coisa: se jogassem detergente no gramado do Brasileirão, metade dos jogadores não levantava. Pelo menos aqui no Futsabão é assumido!"},
+  {authorLabel:"Vampeta",text:"Rapaz, eu já escorreguei em vestiário, em campo molhado, em churrasco. Agora tem campeonato pra isso? Me inscreve! Finalmente vou ser convocado de novo!"}
+];
 const FEED_AUTHORS=[{authorType:"reporter",authorLabel:"Reporter",icon:"📰",color:K.gold},{authorType:"comentarista",authorLabel:"Comentarista",icon:"🎙️",color:K.blu},{authorType:"cartola",authorLabel:"Cartola",icon:"👔",color:K.accL},{authorType:"torcedor",authorLabel:"Torcedor",icon:"📢",color:"#F97316"},{authorType:"presidente",authorLabel:"Presidente Rafão",icon:"🎩",color:"#3B82F6"},{authorType:"arbitro",authorLabel:"Árbitro Rodolfo",icon:"⚖️",color:"#14B8A6"}];
 function AthleteFeed({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
   const hasTournament=(S.matches||[]).length>0;
