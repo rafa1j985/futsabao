@@ -481,7 +481,7 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer,onShowHistoria}){
           <div style={{marginLeft:"auto",color:K.accL,fontSize:20}}>›</div>
         </div>
       </G>
-      {onShowHistoria&&<div style={{marginTop:20,textAlign:"center"}}><button type="button" onClick={onShowHistoria} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:12,fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Conheça a história do Futsabão</button></div>}
+      {onShowHistoria&&<div style={{marginTop:20,textAlign:"center"}}><button type="button" onClick={onShowHistoria} style={{background:"none",border:"none",color:K.gold,cursor:"pointer",fontSize:15,padding:"10px 16px",fontFamily:ff,textDecoration:"underline",opacity:0.9}}>Conheça a história do Futsabão</button></div>}
     </div>:showAthleteLogin?<div style={{maxWidth:340,margin:"0 auto"}}>
       <G style={{padding:24}}>
         <div style={{fontSize:22,marginBottom:16}}>🏅</div>
