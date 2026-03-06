@@ -107,11 +107,34 @@ const TRANSIENT_KEYS=["screen","currentMatch","viewPlayerId"];
 async function cloudSave(state){
   const toSave={...state};
   TRANSIENT_KEYS.forEach(k=>delete toSave[k]);
+  // #region agent log
+  const playerCount=(toSave.players&&toSave.players.length)||0;
+  fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudSave:before',message:'cloudSave payload',data:{playerCount,dest:supabase?'supabase':'localStorage'},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+  // #endregion
   if(supabase){
     try{
+      // Defensive: never overwrite existing athletes with empty list (e.g. after failed load or new tab)
+      const currentPlayers=(toSave.players&&toSave.players.length)||0;
+      if(currentPlayers===0){
+        const{data:existing}=await supabase.from("app_state").select("state").eq("id","main").single();
+        const existingPlayers=existing?.state?.players;
+        if(Array.isArray(existingPlayers)&&existingPlayers.length>0){
+          toSave.players=existingPlayers;
+          // #region agent log
+          fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudSave:guard',message:'preserved existing players',data:{preservedCount:existingPlayers.length},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+          // #endregion
+        }
+      }
       await supabase.from("app_state").upsert({id:"main",state:toSave,updated_at:new Date().toISOString()});
+      // #region agent log
+      fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudSave:after',message:'cloudSave result',data:{ok:true},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       return { ok: true };
-    }catch(e){console.warn("Cloud save failed:",e);return { ok: false, error: e?.message||"Falha ao salvar na nuvem" };}
+    }catch(e){console.warn("Cloud save failed:",e);
+      // #region agent log
+      fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudSave:after',message:'cloudSave result',data:{ok:false,error:e?.message},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
+      return { ok: false, error: e?.message||"Falha ao salvar na nuvem" };}
   }
   try{
     localStorage.setItem(LOCAL_STORAGE_KEY,JSON.stringify(toSave));
@@ -121,19 +144,30 @@ async function cloudSave(state){
 
 // Cloud load — returns saved state or defaults (Supabase or localStorage fallback)
 async function cloudLoad(defaults){
+  // #region agent log
+  let loadSource="defaults";
+  let loadedState=null;
+  // #endregion
   if(supabase){
     try{
       const{data,error}=await supabase.from("app_state").select("state").eq("id","main").single();
-      if(error||!data?.state)return defaults;
-      return{...defaults,...data.state,screen:"home",currentMatch:null};
-    }catch(e){console.warn("Cloud load failed:",e);return defaults;}
+      if(error||!data?.state){loadedState=defaults;loadSource="defaults";}
+      else{loadedState={...defaults,...data.state,screen:"home",currentMatch:null};loadSource="supabase";}
+    }catch(e){console.warn("Cloud load failed:",e);loadedState=defaults;loadSource="defaults";}
+  }else{
+    try{
+      const raw=localStorage.getItem(LOCAL_STORAGE_KEY);
+      if(!raw){loadedState=defaults;}
+      else{const data=JSON.parse(raw);loadedState={...defaults,...data,screen:"home",currentMatch:null};loadSource="localStorage";}
+    }catch(e){console.warn("Local load failed:",e);loadedState=defaults;}
   }
-  try{
-    const raw=localStorage.getItem(LOCAL_STORAGE_KEY);
-    if(!raw)return defaults;
-    const data=JSON.parse(raw);
-    return{...defaults,...data,screen:"home",currentMatch:null};
-  }catch(e){console.warn("Local load failed:",e);return defaults;}
+  if(loadedState!=null){
+    // #region agent log
+    fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudLoad',message:'cloudLoad result',data:{source:loadSource,playerCount:(loadedState.players&&loadedState.players.length)||0},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+    // #endregion
+    return loadedState;
+  }
+  return defaults;
 }
 
 // BroadcastChannel kept for same-tab sync (goal notifications etc)
@@ -321,7 +355,12 @@ export default function App(){
 
   // Load from Supabase on mount
   useEffect(()=>{
-    cloudLoad(initState).then(loaded=>{sS(loaded);sLoading(false);});
+    cloudLoad(initState).then(loaded=>{
+      // #region agent log
+      fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:loadCallback',message:'setState from load',data:{loadedPlayerCount:(loaded.players&&loaded.players.length)||0},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
+      // #endregion
+      sS(loaded);sLoading(false);
+    });
   },[]);
 
   // Debounced cloud save on every state change
@@ -345,6 +384,10 @@ export default function App(){
     const channel=supabase.channel("app_state_changes")
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"app_state",filter:"id=eq.main"},(payload)=>{
         if(payload.new?.state){
+          // #region agent log
+          const extPlayers=(payload.new.state.players&&payload.new.state.players.length)||0;
+          fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:realtime',message:'realtime overwrite',data:{incomingPlayerCount:extPlayers},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+          // #endregion
           isExternalUpdate.current=true;
           sS(prev=>({...prev,...payload.new.state,screen:prev.screen,currentMatch:prev.currentMatch}));
         }
@@ -359,6 +402,10 @@ export default function App(){
     if(!bc)return;
     const handler=(e)=>{
       if(e.data?.type==="state_update"&&e.data.state){
+        // #region agent log
+        const bcPlayers=(e.data.state.players&&e.data.state.players.length)||0;
+        fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:broadcast',message:'broadcast overwrite',data:{incomingPlayerCount:bcPlayers},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
         isExternalUpdate.current=true;
         sS(prev=>({...prev,...e.data.state,screen:prev.screen,currentMatch:prev.currentMatch}));
       }
