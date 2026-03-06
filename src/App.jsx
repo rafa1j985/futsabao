@@ -95,6 +95,7 @@ const SFX={
 /* ══════════ PERSISTENCE — SUPABASE CLOUD + REALTIME ══════════ */
 const SYNC_CHANNEL="futsabao_sync";
 const LOCAL_STORAGE_KEY="futsabao_app_state";
+const PLAYERS_BACKUP_KEY="futsabao_players_backup";
 const DEFAULT_STATE={players:[],teams:[],tournament:null,matches:[],currentMatch:null,screen:"home",commentators:[],geminiKey:"",sponsors:[],votes:{},bets:{},fanChat:{},photos:{},journalists:[],athleteNews:[],tournamentStartAt:null,dailyHeadline:null,cartolaMessage:null,torcedorMessage:null,presidentMessage:null,refereeMessage:null,panjangoVotes:{},preTorneioFeed:[],lastFeedGenerationAt:null,matchStarRatings:{},feedScriptedReporterPool:[0,1,2,3,4,5,6,7,8,9],feedScriptedCommentatorPool:[0,1,2,3,4,5,6,7,8,9],lastScriptedFeedDate:null};
 function getPlayerStarRating(playerId,matchStarRatings){
   const arr=[];
@@ -126,6 +127,7 @@ async function cloudSave(state){
         }
       }
       await supabase.from("app_state").upsert({id:"main",state:toSave,updated_at:new Date().toISOString()});
+      if((toSave.players&&toSave.players.length)>0){try{localStorage.setItem(PLAYERS_BACKUP_KEY,JSON.stringify(toSave.players));}catch(e){}}
       // #region agent log
       fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudSave:after',message:'cloudSave result',data:{ok:true},timestamp:Date.now(),hypothesisId:'H4'})}).catch(()=>{});
       // #endregion
@@ -138,6 +140,7 @@ async function cloudSave(state){
   }
   try{
     localStorage.setItem(LOCAL_STORAGE_KEY,JSON.stringify(toSave));
+    if((toSave.players&&toSave.players.length)>0){try{localStorage.setItem(PLAYERS_BACKUP_KEY,JSON.stringify(toSave.players));}catch(e){}}
     return { ok: true };
   }catch(e){console.warn("Local save failed:",e);return { ok: false, error: e?.message||"Falha ao salvar localmente" };}
 }
@@ -162,6 +165,15 @@ async function cloudLoad(defaults){
     }catch(e){console.warn("Local load failed:",e);loadedState=defaults;}
   }
   if(loadedState!=null){
+    const hasPlayers=(loadedState.players&&loadedState.players.length)||0;
+    if(hasPlayers>0){
+      try{localStorage.setItem(PLAYERS_BACKUP_KEY,JSON.stringify(loadedState.players));}catch(e){}
+    }else{
+      try{
+        const raw=localStorage.getItem(PLAYERS_BACKUP_KEY);
+        if(raw){const backup=JSON.parse(raw);if(Array.isArray(backup)&&backup.length>0){loadedState.players=backup;}}
+      }catch(e){}
+    }
     // #region agent log
     fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:cloudLoad',message:'cloudLoad result',data:{source:loadSource,playerCount:(loadedState.players&&loadedState.players.length)||0},timestamp:Date.now(),hypothesisId:'H1-H5'})}).catch(()=>{});
     // #endregion
@@ -374,7 +386,7 @@ export default function App(){
         else sSetSaveError(null);
       });
       const bc=getBroadcastChannel();
-      if(bc)bc.postMessage({type:"state_update",state:S,ts:Date.now()});
+      if(bc&&(S.players&&S.players.length)>0)bc.postMessage({type:"state_update",state:S,ts:Date.now()});
     },400);
   },[S,loading]);
 
@@ -389,7 +401,15 @@ export default function App(){
           fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:realtime',message:'realtime overwrite',data:{incomingPlayerCount:extPlayers},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
           // #endregion
           isExternalUpdate.current=true;
-          sS(prev=>({...prev,...payload.new.state,screen:prev.screen,currentMatch:prev.currentMatch}));
+          sS(prev=>{
+            const incomingCount=(payload.new.state.players&&payload.new.state.players.length)||0;
+            const currentCount=(prev.players&&prev.players.length)||0;
+            if(incomingCount<currentCount){
+              const {players:_,...rest}=payload.new.state;
+              return {...prev,...rest,screen:prev.screen,currentMatch:prev.currentMatch};
+            }
+            return {...prev,...payload.new.state,screen:prev.screen,currentMatch:prev.currentMatch};
+          });
         }
       })
       .subscribe();
@@ -407,7 +427,16 @@ export default function App(){
         fetch('http://127.0.0.1:7676/ingest/3a492aed-965b-4461-823b-33d73aba749a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6ff1bc'},body:JSON.stringify({sessionId:'6ff1bc',location:'App.jsx:broadcast',message:'broadcast overwrite',data:{incomingPlayerCount:bcPlayers},timestamp:Date.now(),hypothesisId:'H3'})}).catch(()=>{});
         // #endregion
         isExternalUpdate.current=true;
-        sS(prev=>({...prev,...e.data.state,screen:prev.screen,currentMatch:prev.currentMatch}));
+        const incoming=e.data.state;
+        sS(prev=>{
+          const incomingCount=(incoming.players&&incoming.players.length)||0;
+          const currentCount=(prev.players&&prev.players.length)||0;
+          if(incomingCount<currentCount){
+            const {players:_,...rest}=incoming;
+            return {...prev,...rest,screen:prev.screen,currentMatch:prev.currentMatch};
+          }
+          return {...prev,...incoming,screen:prev.screen,currentMatch:prev.currentMatch};
+        });
       }
     };
     bc.addEventListener("message",handler);
@@ -448,7 +477,13 @@ export default function App(){
   const exportData=()=>{const d=JSON.stringify(S,null,2);const b=new Blob([d],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`futsabao-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(u);};
   const importData=(e)=>{const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);sS(p=>({...p,...d,screen:"home",currentMatch:null}));}catch(err){alert("Arquivo inválido");}};r.readAsText(f);};
 
-  const props={S,go,up,REFEREE,STADIUM,BROADCASTERS,role,light,toggleTheme,loggedPlayer,sLoggedPlayer,exportData,importData};
+  const exportPlayers=()=>{const payload={type:"futsabao_atletas",exportedAt:new Date().toISOString(),players:S.players||[]};const b=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=`futsabao-atletas-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(u);};
+  const importPlayers=(e)=>{
+    const f=e.target.files?.[0];if(!f)return;e.target.value="";
+    const r=new FileReader();r.onload=(ev)=>{try{const d=JSON.parse(ev.target.result);let list=Array.isArray(d)?d:(d&&d.players);if(!Array.isArray(list)){alert("Arquivo inválido. Use um backup de atletas (JSON com lista de jogadores).");return;}list=list.filter(p=>p&&(p.id||p.name));if(!list.length){alert("Nenhum atleta válido no arquivo (cada item precisa de id ou name).");return;}const cur=S.players||[];if(!confirm(`Substituir os ${cur.length} atleta${cur.length!==1?"s":""} atuais por ${list.length} atleta${list.length!==1?"s":""} do arquivo?`))return;up({players:list});}catch(err){alert("Arquivo inválido. "+(err?.message||""));}};r.readAsText(f);
+  };
+
+  const props={S,go,up,REFEREE,STADIUM,BROADCASTERS,role,light,toggleTheme,loggedPlayer,sLoggedPlayer,exportData,importData,exportPlayers,importPlayers};
   // Loading screen while fetching from cloud
   if(loading)return <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:K.bg,fontFamily:ff,color:K.tx}}>
     <img src={LOGO} alt="" style={{maxWidth:180,width:"100%",marginBottom:20,opacity:0.8}}/>
@@ -557,6 +592,7 @@ function LoginScreen({onRole,light,toggleTheme,S,sLoggedPlayer,onShowHistoria}){
 }
 
 /* ══════════ ATHLETE DASHBOARD (TOURNAMENT HOME) ══════════ */
+const AUTO_CONTENT_ENABLED=false;
 function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlayer}){
   const hasTournament=(S.matches||[]).length>0;
   const[justRegistered,sJustRegistered]=useState(()=>{try{const v=sessionStorage.getItem("futsabao_just_registered");if(v){sessionStorage.removeItem("futsabao_just_registered");return true;}return false;}catch(e){return false;}});
@@ -576,6 +612,7 @@ function AthleteDashboard({S,go,up,REFEREE,STADIUM,BROADCASTERS,role,loggedPlaye
   const[feedScheduleTick,sFeedScheduleTick]=useState(0);
   const today=(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;})();
   useEffect(()=>{
+    if(!AUTO_CONTENT_ENABLED)return;
     if(!S.geminiKey||dailyHeadlineGeneratingRef.current)return;
     if(S.dailyHeadline&&S.dailyHeadline.date===today)return;
     dailyHeadlineGeneratingRef.current=true;
@@ -614,6 +651,7 @@ Linha 3: DISPUTA: dois comentaristas discordam com provocação pesada. Use dois
     }).finally(()=>{dailyHeadlineGeneratingRef.current=false;sGeneratingDailyHeadline(false);});
   },[S.geminiKey,S.dailyHeadline,S.players,S.sponsors,S.commentators,S.tournamentStartAt,today]);
   useEffect(()=>{
+    if(!AUTO_CONTENT_ENABLED)return;
     if(!S.geminiKey||cartolaGeneratingRef.current)return;
     if(S.cartolaMessage&&S.cartolaMessage.date===today)return;
     cartolaGeneratingRef.current=true;
@@ -639,6 +677,7 @@ Gere UMA única frase ou duas curtas (máx 150 caracteres), em primeira pessoa. 
     }).finally(()=>{cartolaGeneratingRef.current=false;sGeneratingCartola(false);});
   },[S.geminiKey,S.cartolaMessage,S.players,S.tournamentStartAt,today]);
   useEffect(()=>{
+    if(!AUTO_CONTENT_ENABLED)return;
     if(!S.geminiKey||torcedorGeneratingRef.current)return;
     if(S.torcedorMessage&&S.torcedorMessage.date===today)return;
     torcedorGeneratingRef.current=true;
@@ -664,6 +703,7 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
   },[S.geminiKey,S.torcedorMessage,S.players,today]);
   const feedGeneratingRef=useRef(false);
   useEffect(()=>{
+    if(!AUTO_CONTENT_ENABLED)return;
     if(hasTournament||S.lastScriptedFeedDate===today)return;
     let repPool=Array.isArray(S.feedScriptedReporterPool)?[...S.feedScriptedReporterPool]:[0,1,2,3,4,5,6,7,8,9];
     let comPool=Array.isArray(S.feedScriptedCommentatorPool)?[...S.feedScriptedCommentatorPool]:[0,1,2,3,4,5,6,7,8,9];
@@ -687,6 +727,7 @@ Gere UMA frase curta (máx 150 caracteres), em primeira pessoa. Responda APENAS 
     up({preTorneioFeed:[...(S.preTorneioFeed||[]),...newPosts],feedScriptedReporterPool:repPoolNext,feedScriptedCommentatorPool:comPoolNext,lastScriptedFeedDate:today});
   },[hasTournament,today,S.lastScriptedFeedDate,S.feedScriptedReporterPool,S.feedScriptedCommentatorPool,S.players,S.preTorneioFeed]);
   useEffect(()=>{
+    if(!AUTO_CONTENT_ENABLED)return;
     if(!S.geminiKey||hasTournament||feedGeneratingRef.current)return;
     const feed=S.preTorneioFeed||[];
     const feedToday=feed.filter(p=>p.createdAt&&p.createdAt.startsWith(today));
@@ -1533,22 +1574,26 @@ function Recados({S,up,go}){
 }
 
 /* ══════════ ADMIN HOME ══════════ */
-function Home({S,go,REFEREE,STADIUM,BROADCASTERS,exportData,importData}){
+function Home({S,go,REFEREE,STADIUM,BROADCASTERS,exportData,importData,exportPlayers,importPlayers}){
   const pl=S.matches.filter(m=>m.played).length;
   const impRef=useRef(null);
+  const impPlayersRef=useRef(null);
   return <div style={{paddingTop:10,paddingBottom:44}}>
     <div style={{textAlign:"center",marginBottom:24}}>
       <div style={{marginBottom:16,animation:"gw 4s ease-in-out infinite"}}><img src={LOGO} alt="" style={{maxWidth:200,width:"100%",height:"auto",display:"block",margin:"0 auto",filter:"drop-shadow(0 8px 30px rgba(196,165,97,0.15))"}}/></div>
     </div>
     {/* Data persistence indicator */}
     <G style={{marginBottom:14,padding:"10px 14px",border:`1px solid ${K.grn}15`}}>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <div style={{width:8,height:8,borderRadius:"50%",background:K.grn}}/>
         <span style={{fontFamily:fC,fontSize:11,fontWeight:700,color:K.grn,letterSpacing:"0.06em"}}>DADOS SALVOS</span>
         <span style={{fontSize:10,color:K.txD,flex:1}}>Auto-save no navegador + sincroniza abas</span>
         <input ref={impRef} type="file" accept=".json" onChange={importData} style={{display:"none"}}/>
+        <input ref={impPlayersRef} type="file" accept=".json" onChange={importPlayers} style={{display:"none"}}/>
         <button onClick={()=>impRef.current?.click()} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"3px 10px",fontSize:10,color:K.txD,fontFamily:fC,fontWeight:700}}>📥 IMPORTAR</button>
         <button onClick={exportData} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"3px 10px",fontSize:10,color:K.txD,fontFamily:fC,fontWeight:700}}>📤 BACKUP</button>
+        <button onClick={exportPlayers} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"3px 10px",fontSize:10,color:K.txD,fontFamily:fC,fontWeight:700}}>👤 BACKUP ATLETAS</button>
+        <button onClick={()=>impPlayersRef.current?.click()} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"3px 10px",fontSize:10,color:K.txD,fontFamily:fC,fontWeight:700}}>👤 IMPORTAR ATLETAS</button>
       </div>
     </G>
     <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
@@ -1597,11 +1642,12 @@ function genFakePlayer(){
 }
 
 /* ══════════ PLAYERS ══════════ */
-function Players({S,up,go}){
+function Players({S,up,go,exportPlayers,importPlayers}){
   const[sL,sSL]=useState(false);const[cp,sCp]=useState(false);const[eId,sEId]=useState(null);
   const[delId,sDelId]=useState(null); // confirm delete
   const rl=`${window.location.origin}${window.location.pathname}#register`;
   const[showQR,sShowQR]=useState(null); // player id for QR
+  const impPlayersRef=useRef(null);
   const add=f=>up({players:[...S.players,{id:uid(),...f}]});
   const rem=id=>{up({players:S.players.filter(p=>p.id!==id),teams:S.teams.map(t=>({...t,playerIds:t.playerIds.filter(p=>p!==id)}))});sDelId(null);};
   const save=f=>{up({players:S.players.map(p=>p.id===eId?{...p,...f}:p)});sEId(null);};
@@ -1611,6 +1657,11 @@ function Players({S,up,go}){
   return <div style={{paddingTop:20,paddingBottom:40}}>
     <BB onClick={()=>go("home")} crumb="JOGADORES"/>
     <SH icon="👤" title="JOGADORES" sub={`${S.players.length} atleta${S.players.length!==1?"s":""}`}/>
+    <G style={{marginBottom:14,padding:"10px 14px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+      <input ref={impPlayersRef} type="file" accept=".json" onChange={importPlayers} style={{display:"none"}}/>
+      <button onClick={exportPlayers} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"4px 12px",fontSize:10,color:K.txD,fontFamily:fC,fontWeight:700}}>👤 BACKUP ATLETAS</button>
+      <button onClick={()=>impPlayersRef.current?.click()} style={{background:"none",border:`1px solid ${K.bd}`,borderRadius:6,cursor:"pointer",padding:"4px 12px",fontSize:10,color:K.txD,fontFamily:fC,fontWeight:700}}>👤 IMPORTAR ATLETAS</button>
+    </G>
     {/* Admin: Simulator */}
     <G style={{marginBottom:14,padding:"10px 14px",border:`1px dashed ${K.acc}25`,background:K.acc+"06"}}>
       <div style={{display:"flex",alignItems:"center",gap:10}}>
