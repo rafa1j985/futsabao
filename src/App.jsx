@@ -402,6 +402,7 @@ export default function App(){
           // #endregion
           isExternalUpdate.current=true;
           sS(prev=>{
+            if(prev.screen==="register")return prev;
             const incomingCount=(payload.new.state.players&&payload.new.state.players.length)||0;
             const currentCount=(prev.players&&prev.players.length)||0;
             if(incomingCount<currentCount){
@@ -429,6 +430,7 @@ export default function App(){
         isExternalUpdate.current=true;
         const incoming=e.data.state;
         sS(prev=>{
+          if(prev.screen==="register")return prev;
           const incomingCount=(incoming.players&&incoming.players.length)||0;
           const currentCount=(prev.players&&prev.players.length)||0;
           if(incomingCount<currentCount){
